@@ -710,10 +710,10 @@ var NET=null,REMOTE=false,_pair={mode:'',step:'',offer:'',answer:'',msg:'',err:'
 var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},
   ];
 /* 中繼（TURN）：向 Metered 取得暫時憑證（第三方服務，只轉送加密後的連線流量；正式實驗前請在其後台重新產生 API Key）*/
-var TURN_URL='https://smmgame.metered.live/api/v1/turn/credentials?apiKey=ME35NzOANTSYo2KVHTjlfBB96AbR1UZj6h98MgL6_sBXTfi0',_turnP=null,_turnN=0;
+var TURN_URL='https://smmgame.metered.live/api/v1/turn/credentials?apiKey=a6ac656a6ee36b66f27e888c3f07a1de79b4',_turnP=null,_turnN=0,_turnE='';
 function loadTurn(){if(_turnP)return _turnP;
   _turnP=new Promise(function(res){var done=false,fin=function(){if(!done){done=true;res()}};setTimeout(fin,4000);
-    try{fetch(TURN_URL).then(function(r){return r.json()}).then(function(a){if(Array.isArray(a)&&a.length){ICE=ICE.concat(a);_turnN=a.length}fin()}).catch(fin)}catch(e){fin()}});
+    try{fetch(TURN_URL).then(function(r){return r.json()}).then(function(a){if(Array.isArray(a)&&a.length){ICE=ICE.concat(a);_turnN=a.length}else _turnE=(a&&a.error)||'格式錯誤';fin()}).catch(function(e){_turnE=(e&&e.message)||'連不上';fin()})}catch(e){fin()}});
   return _turnP}
 try{loadTurn()}catch(e){}
 var _rcount=0;
@@ -749,7 +749,7 @@ async function hostCreate(){
     _pair.offer=await encCode({d:pc.localDescription});_pair.msg='';_pair.step='hostWait'}
   catch(e){_pair.err='無法建立連線：'+(e&&e.message||e)}
   render()}
-function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+(/ \S+\.local /.test(d)?'(.local)':'')+'、srflx '+c('srflx')+'、relay '+c('relay')+'；收到對方候選 '+_rcount+'；中繼設定 '+(_turnN?'已載入':'未載入')}
+function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+(/ \S+\.local /.test(d)?'(.local)':'')+'、srflx '+c('srflx')+'、relay '+c('relay')+'；收到對方候選 '+_rcount+'；中繼設定 '+(_turnN?'已載入':'未載入'+(_turnE?'（'+_turnE+'）':''))}
 async function hostAccept(txt){
   _pair.err='';
   if(_pc&&_pc.remoteDescription){_pair.msg='已經送出回覆碼了，請不要重複按「連線」。連線狀態會顯示在下方；若超過 20 秒沒連上，請兩邊重新整理後重做一次。';render();return}

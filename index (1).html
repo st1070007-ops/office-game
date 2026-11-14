@@ -1,0 +1,901 @@
+<title>雙人公司經營模擬</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Full-screen HUD: top bar, A console | factory scene | B console, bottom checks. No page scrolling on desktop. */
+:root{
+  --bg:#E4E9ED; --panel:#FFFFFF; --ink:#14202B; --muted:#586674; --line:#CBD3DA; --track:#DDE3E8;
+  --a:#2B5C8A; --a-soft:#E3EDF6; --b:#2F7A52; --b-soft:#E1F1E8;
+  --warn:#B3261E; --warn-soft:#F8E1DF; --event:#7A4F00; --event-soft:#F6E8C8; --ok:#2F7A52;
+  --sky1:#BFDAEE; --sky2:#EAF3F9; --ground:#8E9AA3; --wall:#D5DCE2; --wall2:#B7C2CB; --roof:#6B7A87; --glass:#9FC3DE; --crate:#B98A52; --crate2:#8C6636;
+  --smoke:#FFFFFF; --truck:#2B5C8A; --road:#59656F; --sun:#F6D36B; --city:#9FB0BD;
+  --font-body:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;
+  --font-num:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1217; --panel:#16202A; --ink:#E6ECF1; --muted:#97A5B1; --line:#2C3945; --track:#2A3641;
+  --a:#7FB2E0; --a-soft:#17293A; --b:#7CC79B; --b-soft:#16301F;
+  --warn:#FF8F86; --warn-soft:#3A1E1C; --event:#F0C56A; --event-soft:#3A2E12; --ok:#7CC79B;
+  --sky1:#14263A; --sky2:#223A52; --ground:#3A4650; --wall:#34424E; --wall2:#27333D; --roof:#4A5967; --glass:#3F6E8F; --crate:#A87B45; --crate2:#7A5830;
+  --smoke:#8FA0AE; --truck:#7FB2E0; --road:#2C363E; --sun:#C9C08A; --city:#3B4B59; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1217; --panel:#16202A; --ink:#E6ECF1; --muted:#97A5B1; --line:#2C3945; --track:#2A3641;
+  --a:#7FB2E0; --a-soft:#17293A; --b:#7CC79B; --b-soft:#16301F;
+  --warn:#FF8F86; --warn-soft:#3A1E1C; --event:#F0C56A; --event-soft:#3A2E12; --ok:#7CC79B;
+  --sky1:#14263A; --sky2:#223A52; --ground:#3A4650; --wall:#34424E; --wall2:#27333D; --roof:#4A5967; --glass:#3F6E8F; --crate:#A87B45; --crate2:#7A5830;
+  --smoke:#8FA0AE; --truck:#7FB2E0; --road:#2C363E; --sun:#C9C08A; --city:#3B4B59; color-scheme:dark}
+*{box-sizing:border-box}
+html{font-size:clamp(13px,1.5vh,17px)}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:1rem;line-height:1.45}
+h1{font-size:1.7rem;margin:0;text-wrap:balance} h2{font-size:1.15rem;margin:0} h3{font-size:1rem;margin:0} p{margin:0}
+.muted{color:var(--muted)} .num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-weight:700;border:0;border-radius:.4rem;padding:.55rem 1.1rem;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:.3rem .7rem;font-size:.85rem} .btn.big{padding:.75rem 1.2rem;font-size:1.05rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:.6rem;padding:.55rem .75rem}
+.notice{font-size:.85rem;color:var(--muted)}
+/* HUD grid */
+.hud{height:100dvh;display:grid;gap:.6rem;padding:.6rem;padding-left:max(.6rem,env(safe-area-inset-left,0px));padding-right:max(.6rem,env(safe-area-inset-right,0px));
+  grid-template-columns:minmax(15rem,19rem) minmax(0,1fr) minmax(15rem,19rem);grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:"top top top" "a mid b" "bot bot bot"}
+.hud.plain{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"top" "scr"}
+body{overflow:hidden}
+.top{grid-area:top;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:.6rem;padding:.4rem .75rem}
+.brand{display:flex;align-items:baseline;gap:.7rem;white-space:nowrap} .brand b{font-size:1.1rem} .brand span{font-size:.9rem;color:var(--muted)}
+.strip{display:flex;flex-wrap:wrap;gap:.25rem;flex:1;justify-content:center}
+.chip{font-family:var(--font-num);font-size:.75rem;padding:.12rem .5rem;border-radius:.3rem;border:1px solid var(--line);color:var(--muted)}
+.chip.done{color:var(--ink);border-color:var(--ink)} .chip.now{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600} .chip.gap{border-style:dashed}
+.tools{display:flex;align-items:center;gap:.6rem;margin-left:auto}
+.timer{font-family:var(--font-num);font-size:1.1rem}
+/* panels */
+.pan{background:var(--panel);border:1px solid var(--line);border-radius:.6rem;padding:.7rem;overflow:auto;display:flex;flex-direction:column;gap:.55rem;min-height:0;min-width:0}
+.role.a{grid-area:a;background:var(--a-soft);border-color:var(--a)} .role.b{grid-area:b;background:var(--b-soft);border-color:var(--b)}
+.pan header{display:flex;flex-direction:column;gap:.1rem}
+.pan header span{font-size:.8rem;color:var(--muted)}
+.role.a h2{color:var(--a)} .role.b h2{color:var(--b)}
+.sl{display:flex;flex-direction:column;gap:.7rem}
+.srow{display:grid;grid-template-columns:1fr auto;gap:.05rem .5rem;align-items:center}
+.srow .nm{font-weight:700;font-size:.92rem}
+.srow .nin{display:flex;align-items:center;gap:.25rem}
+.srow input[type=range]{grid-column:1/-1;width:100%;margin:.25rem 0 0;accent-color:var(--ink);min-width:0}
+.srow input[type=number]{width:4.8rem;font:inherit;font-size:.9rem;font-family:var(--font-num);padding:.2rem .3rem;border-radius:.3rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-align:right}
+.srow .u{font-size:.78rem;color:var(--muted);min-width:1.6rem}
+.srow .hint{grid-column:1/-1;font-size:.72rem;color:var(--muted);line-height:1.3}
+.confirm{margin-top:auto;position:sticky;bottom:-.7rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.5rem 0 .2rem}
+.role.a .confirm{background:linear-gradient(transparent,var(--a-soft) 30%)} .role.b .confirm{background:linear-gradient(transparent,var(--b-soft) 30%)}
+.okpill{font-size:.82rem;font-weight:700;padding:.15rem .6rem;border-radius:999px;background:var(--panel);color:var(--muted);border:1px solid var(--line)}
+.okpill.yes{color:var(--ok);border-color:var(--ok)}
+/* centre */
+.mid{grid-area:mid;display:flex;flex-direction:column;gap:.5rem;min-height:0;min-width:0}
+.banner{display:flex;flex-direction:column;gap:.3rem}
+.evl{border-radius:.5rem;padding:.35rem .75rem;background:var(--panel);border:1px solid var(--line);font-size:.9rem}
+.evl.hot{background:var(--event-soft);color:var(--event);border-color:transparent;font-weight:500}
+.hl{border-radius:.5rem;padding:.4rem .75rem;font-weight:700;background:var(--ink);color:var(--bg);font-size:.95rem}
+.hl.bad{background:var(--warn);color:#fff} .hl.good{background:var(--ok);color:#fff}
+.prev{font-size:.8rem;color:var(--muted);padding:0 .25rem}
+.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.scene{position:relative;flex:1;min-height:12rem;border-radius:.6rem;overflow:hidden;border:1px solid var(--line);background:linear-gradient(var(--sky1),var(--sky2))}
+.scene svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.scene .tick{font-family:var(--font-num);font-size:15px;fill:var(--ink)}
+.dusk{position:absolute;inset:0;background:#0A1830;opacity:0;transition:opacity .6s;pointer-events:none}
+.scene.night .dusk{opacity:.3}
+.cloud{animation:drift 22s ease-in-out infinite alternate;animation-delay:var(--cd,0s)}
+@keyframes drift{to{transform:translateX(70px)}}
+.smoke circle{fill:var(--smoke);opacity:0;animation:puff 3.4s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes puff{0%{opacity:0;transform:translate(0,0) scale(.4)}15%{opacity:var(--smk,.7)}100%{opacity:0;transform:translate(34px,-70px) scale(2.2)}}
+.gear{transform-box:fill-box;transform-origin:center;animation:spin var(--gspd,6s) linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.beltbox{animation:belt var(--bspd,5s) linear infinite;animation-delay:var(--bd,0s)}
+@keyframes belt{from{transform:translateX(0)}to{transform:translateX(300px)}}
+.worker{animation:bob var(--wd,1.6s) ease-in-out infinite;animation-delay:var(--wdel,0s);transform-box:fill-box}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.worker.tired{animation-duration:3s}
+.win{fill:var(--glass);transition:fill .4s}
+.night .win{fill:#F6D36B}
+.truck{animation:drive 4.2s ease-in-out forwards}
+@keyframes drive{0%{transform:translateX(0)}15%{transform:translateX(0)}100%{transform:translateX(700px)}}
+.leave{animation:walkout 1.4s .4s ease-in forwards}
+@keyframes walkout{to{transform:translateX(70px);opacity:0}}
+.arrive{animation:walkin 1.2s .5s ease-out backwards}
+@keyframes walkin{from{transform:translateX(-90px);opacity:0}}
+/* coach */
+.coach{position:absolute;top:.6rem;left:50%;transform:translateX(-50%);width:min(25rem,92%);background:var(--panel);border:2px solid var(--event);border-radius:.6rem;padding:.7rem .85rem;display:none;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:3}
+.coach .cstep{font-size:.75rem;color:var(--event);font-weight:700} .coach p{font-size:.9rem;margin:.2rem 0 .5rem} .coach .cbtn{display:flex;gap:.4rem;align-items:center}
+.spot{outline:3px solid var(--event);outline-offset:3px;animation:pulse 1.2s ease-in-out infinite;position:relative;z-index:2}
+@keyframes pulse{50%{outline-color:transparent}}
+/* kpis */
+.k{background:var(--panel);border:1px solid var(--line);border-radius:.5rem;padding:.3rem .5rem;display:flex;flex-direction:column;gap:.05rem;min-width:0}
+.k .l{font-size:.68rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .k .v{font-family:var(--font-num);font-size:1.05rem;font-weight:600;line-height:1.15}
+.bar{height:.3rem;border-radius:3px;background:var(--track);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink);transition:width .6s}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem} .kgrid .k .v{font-size:1.2rem}
+/* bottom checks */
+.bot{grid-area:bot;display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(11rem,14rem);gap:.6rem;align-items:stretch}
+.bot.res{grid-template-columns:minmax(0,1fr) minmax(11rem,14rem)}
+.chk{display:flex;flex-direction:column;gap:.2rem}
+.chk .row{display:flex;justify-content:space-between;gap:.5rem;align-items:baseline;font-size:.9rem}
+.track{position:relative;height:1.05rem;border-radius:.35rem;background:var(--track);margin-top:1.1rem}
+.fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:.35rem 0 0 .35rem;max-width:100%;background:var(--a);transition:width .5s cubic-bezier(.3,.7,.2,1),background .3s}
+.fill.over{background:var(--warn)}
+.stack{position:absolute;left:0;top:0;bottom:0;display:flex;width:0;border-radius:.35rem 0 0 .35rem;overflow:hidden;transition:width .5s cubic-bezier(.3,.7,.2,1)}
+.stack i{display:block;height:100%;min-width:0}
+.mark{position:absolute;top:-.2rem;bottom:-.2rem;width:3px;background:var(--ink);transition:left .5s cubic-bezier(.3,.7,.2,1)}
+.mark span{position:absolute;top:-1.05rem;left:-2px;font-size:.68rem;font-family:var(--font-num);white-space:nowrap}
+.mark.r span{left:auto;right:-1px;text-align:right}
+.mt{font-size:.75rem;color:var(--muted);line-height:1.3}
+.legend{display:flex;flex-wrap:wrap;gap:.1rem .6rem;font-size:.7rem;color:var(--muted)}
+.legend b.sw{display:inline-block;width:.6rem;height:.6rem;border-radius:2px;margin-right:.25rem}
+.status{font-weight:700;font-size:.85rem} .status.bad{color:var(--warn)} .status.good{color:var(--ok)}
+.sub{display:flex;flex-direction:column;justify-content:center;gap:.4rem;text-align:center}
+/* screens */
+.screen{grid-area:scr;display:flex;align-items:center;justify-content:center;min-height:0;overflow:auto}
+.sheet{width:min(46rem,100%);max-height:100%;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:.8rem;padding:1.4rem 1.6rem;display:flex;flex-direction:column;gap:.9rem}
+.sheet.wide{width:min(64rem,100%)}
+.dots{display:flex;gap:.4rem;align-items:center} .dots i{width:.6rem;height:.6rem;border-radius:50%;background:var(--track)} .dots i.on{background:var(--ink)}
+.navrow{display:flex;gap:.6rem;align-items:center;justify-content:space-between}
+ul.plain,ol.plain{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:.35rem}
+.mini{display:grid;grid-template-columns:1fr 2fr 1fr;gap:.4rem;font-size:.85rem;text-align:center}
+.mini div{border-radius:.4rem;padding:.7rem .4rem;border:1px solid var(--line)}
+.mini .a{background:var(--a-soft);border-color:var(--a);color:var(--a)} .mini .b{background:var(--b-soft);border-color:var(--b);color:var(--b)}
+.mini .m{background:linear-gradient(var(--sky1),var(--sky2))} .mini .bt{grid-column:1/-1;background:var(--panel)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.82rem}
+th,td{padding:.3rem .45rem;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left} th{color:var(--muted);font-weight:500}
+.viol{color:var(--warn);font-weight:700}
+textarea{width:100%;min-height:10rem;font-family:var(--font-num);font-size:.75rem;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:.4rem;padding:.6rem}
+@media (prefers-reduced-motion:reduce){.smoke circle,.gear,.beltbox,.worker,.truck,.leave,.arrive,.cloud,.spot,.shake{animation:none}.leave{opacity:.2}.truck{transform:translateX(700px)}.fill,.stack,.mark,.bar i,.dusk{transition:none}}
+.opts{display:flex;flex-direction:column;gap:.5rem}
+.opt{font:inherit;text-align:left;padding:.7rem 1rem;border-radius:.5rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.opt.sel,.sc.sel{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pair{display:flex;align-items:stretch;gap:.7rem}
+.cc{flex:1;border:1px solid var(--line);border-radius:.6rem;padding:.8rem 1rem;display:flex;flex-direction:column;gap:.2rem;background:var(--bg)}
+.cc b{font-size:1.2rem} .cc span{font-size:.85rem;color:var(--muted)} .arrow{align-self:center;font-size:1.4rem;color:var(--muted)}
+.scale{display:grid;grid-template-columns:repeat(9,1fr);gap:.3rem}
+.sc{font:inherit;font-family:var(--font-num);font-weight:600;padding:.7rem 0;border-radius:.4rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.ends{display:flex;justify-content:space-between;gap:.5rem;font-size:.78rem;color:var(--muted)} .ends span:nth-child(2){text-align:center}
+.tcode{display:flex;align-items:baseline;gap:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:.6rem;padding:.6rem 1rem} .tcode b{font-size:2rem;letter-spacing:.15em}
+.chks{display:flex;flex-wrap:wrap;gap:1.2rem;align-items:center} .chks label{display:flex;gap:.4rem;align-items:center;cursor:pointer}
+.sheet a{color:var(--a);word-break:break-all}
+.kstrip,.fstrip{display:grid;grid-template-columns:auto repeat(5,minmax(0,1fr));gap:.35rem;align-items:stretch}
+.kt{writing-mode:vertical-rl;font-size:.7rem;font-weight:700;color:var(--muted);align-self:center;letter-spacing:.1em;text-align:center}
+.fstrip .k{border-color:var(--ink)} .fstrip .k .v{font-size:1.1rem}
+.mission{border-radius:.5rem;padding:.4rem .75rem;background:var(--panel);border:2px solid var(--ink);font-size:.98rem}
+.ti{display:inline-flex;align-items:center;justify-content:center;width:1.05rem;height:1.05rem;margin-left:.25rem;border-radius:50%;border:1px solid var(--muted);background:var(--panel);color:var(--muted);font:700 .68rem/1 var(--font-ui,inherit);cursor:pointer;padding:0;vertical-align:middle;flex:none}
+.ti:hover,.ti:focus-visible{background:var(--ink);color:var(--panel);border-color:var(--ink);outline:none}
+.tipbox{position:fixed;z-index:30;max-width:min(300px,calc(100vw - 16px));background:var(--panel);color:var(--ink);border:1.5px solid var(--ink);border-radius:.6rem;padding:.6rem .75rem;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:.85rem;line-height:1.45}
+.tipbox b{display:block;margin-bottom:.15rem}.tipbox p{margin:0 0 .4rem}
+.tipbox .tl{background:none;border:0;padding:0;color:var(--muted);font-size:.75rem;text-decoration:underline;cursor:pointer}
+.intel{border:1.5px dashed var(--muted);border-radius:.5rem;padding:.35rem .5rem;display:flex;flex-direction:column;gap:.3rem;flex:none}
+.ibtn{display:flex;align-items:center;gap:.4rem;width:100%;background:var(--panel);border:1px solid var(--ink);border-radius:.4rem;padding:.3rem .5rem;font:600 .82rem/1.2 inherit;color:var(--ink);cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none}
+.ibtn small{margin-left:auto;color:var(--muted);font-weight:400;font-size:.7rem}
+.ibtn.on{background:var(--ink);color:var(--panel)} .ibtn.on small{color:inherit}
+.itxt{font-size:.82rem;line-height:1.45}
+#netbar{position:fixed;left:50%;bottom:.5rem;transform:translateX(-50%);z-index:25;background:var(--ink);color:var(--panel);padding:.3rem .8rem;border-radius:2rem;font-size:.78rem;max-width:92vw;text-align:center;opacity:.92}
+#netbar.bad{background:#b3261e;color:#fff;opacity:1}
+.intel .ihead{font-weight:600;font-size:.82rem;display:flex;gap:.4rem;align-items:center}.intel .ihead small{margin-left:auto;color:var(--muted);font-weight:400;font-size:.7rem}
+.intel.mine{border-style:solid;border-color:var(--ink)}.intel .ifoot{font-size:.72rem;color:var(--muted)}
+.opts .opt{display:block;width:100%;text-align:left;margin:.4rem 0}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:20}
+.ov .sheet{max-height:92vh}
+dl.gl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem;margin:0;font-size:.92rem} dl.gl dt{font-weight:700} dl.gl dd{margin:0;color:var(--muted)}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem} .steps div{border:1px solid var(--line);border-radius:.5rem;padding:.5rem .6rem;display:flex;flex-direction:column;gap:.2rem;font-size:.88rem} .steps b{font-size:1.2rem;color:var(--a)} .steps span{font-size:.78rem;color:var(--muted)}
+@media (max-width:700px){.k .l{white-space:normal;overflow:visible;text-overflow:clip}.steps{grid-template-columns:1fr}dl.gl{grid-template-columns:1fr}.kt{writing-mode:horizontal-tb;grid-column:1/-1}}
+/* narrow screens: stack and allow normal scrolling */
+@media (max-width:1000px){
+  body{overflow:auto} html,body{height:auto}
+  .hud{height:auto;min-height:100dvh;grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-template-areas:"top" "mid" "a" "b" "bot"}
+  .hud.plain{grid-template-areas:"top" "scr"}
+  .pan{overflow:visible} .confirm{position:static}
+  .scene{flex:none;min-height:0;aspect-ratio:700/520}
+  .kstrip{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .bot,.bot.res{grid-template-columns:minmax(0,1fr)}
+  .strip{justify-content:flex-start}
+}
+</style>
+
+<div id="app"></div>
+
+<script>
+/* ================= constants (provisional; calibrate offline) ================= */
+var COMPANY='OO製造';
+var START={N:30,sk:5,en:5,mach:80,mat:300};
+var SEQ=[
+ {id:'P1',label:'P1',practice:true},{id:'P2',label:'P2',practice:true},
+ {id:'R1',label:'R1'},{id:'R2',label:'R2'},{id:'R3',label:'R3'},{id:'R4',label:'R4'},
+ {id:'T2',label:'T2',smm:true},
+ {id:'R5',label:'R5'},{id:'R6',label:'R6'},{id:'R7',label:'R7'},{id:'R8',label:'R8'}
+];
+var SELL=33;            /* selling price per good unit */
+var TARGETS={P1:400,P2:400,R1:400,R2:430,R3:460,R4:490,R5:540,R6:570,R7:600,R8:630};
+
+/* 部門情報：只給該角色自己看，另一位要靠對方口頭告知。每一則都對應模型裡真實存在的效果。 */
+var INTEL={
+ P1:{A:'（練習）這是「部門情報」，只有你自己看，請口頭告訴搭檔，再一起決定。例如：「聽說下一季有同業要來挖角。」',B:'（練習）這是「部門情報」，只有你自己看，請口頭告訴搭檔，再一起決定。例如：「員工私下反映加班太多。」'},
+ R1:{A:'業務／同業消息：下一季（R2）競爭者會來挖角，員工的離職傾向會大幅上升。人資那邊可能需要提早調整薪資與福利。',B:'員工訪談：加班超過 10% 的部分，員工會明顯不滿——每多加班 1%，離職率就多 1.5 個百分點，投入度也快速下降。營運的加班決策要留意。'},
+ R2:{A:'採購通知：從下一季（R3）起原料單價由 6 漲到 10，連漲兩季。現在多買的庫存可以用舊價格，但用不完要付保管費。',B:'人資提醒：新進員工到職的第一季，生產力只有一半；若人均培訓預算有 40 以上，損失可降到四分之一。營運在設定下一季的生產計畫時要把這點算進去。'},
+ R3:{A:'業務預告：R5 會有大型訂單（540 件），同時市場薪資行情會上漲 10%。人手與薪資要提早規劃，新人要提前一季招募才來得及。',B:'工時提醒：培訓與設備維護都要佔用生產工時——預算花得越多，本季能用來生產的時間越少。營運與人資的預算要一起算。'},
+ R4:{A:'設備廠通知：機器每季自然老化，用得越滿老化越快；維護預算要持續投入，否則過幾季容易出大狀況。',B:'人資預告：R7 是流感季，出勤預計下降約 15%。要提早增加人手，或把生產計畫留點餘裕。'},
+ R5:{A:'倉儲提醒：倉庫電線老舊，下一季（R6）可能發生意外，庫存放得越多損失越大。',B:'員工訪談：福利每人超過約 40 元、薪資超過行情約 20% 之後，對投入度就沒有額外加分了，再多花只是增加成本。'},
+ R6:{A:'下一季（R7）是流感季，出勤下降；本季原料不要買太多，避免剩下的庫存白白付保管費。',B:'年終最後一季（R8）訂單最高（630 件）。人手與技能要在 R7 之前就準備好。'},
+ R7:{A:'R8 年終訂單 630 件，是全年最高；要用多少原料，現在就要規劃。',B:'提醒：最後一季砍培訓、福利、維護，當季雖然省錢，但員工投入度和機器狀態下降會被計入資產價值，反而吃虧。'},
+ R8:{A:'最後一季：全力衝刺，注意產能與原料是否足夠。',B:'最後一季：和搭檔討論各自要怎麼取捨，再按確認。'}
+};
+var DSHOCK={P2:.02,R1:.01,R2:-.01,R3:.02,R4:-.01,R5:.03,R6:0,R7:.02,R8:-.01}; /* 不良率的臨時波動：預估看不到，提交後才知道 */
+var EVENTS={
+ R2:{turn:.12,text:'競爭者大舉挖角：本回合員工離職傾向大幅上升，人手可能不夠。'},
+ R3:{price:10,text:'原料大漲價：本回合與下回合每單位原料價格由 6 上升到 10，成本壓力變大。'},
+ R4:{price:10,text:'原料價格仍維持高檔（每單位 10）。'},
+ R5:{wmkt:10,text:'大型訂單進來，訂單明顯增加；同時市場薪資行情上漲 10%，同樣的薪資在員工眼中變少了。'},
+ R6:{mach:-40,fire:1,text:'工廠倉庫失火！本回合開始時原料庫存全毀，機器也受損、狀態大幅下降。要重新採購原料並加強維修。'},
+ R7:{cap:.85,text:'流感季：本回合出勤下降，產能受影響。'},
+ R8:{text:'年終衝刺：訂單再創新高。'}
+};
+function roundInfo(id){
+  var e={turn:0,wmkt:0,fire:0,dshock:DSHOCK[id]||0,price:6,target:TARGETS[id]||400,mach:0,cap:1,text:''};
+  var x=EVENTS[id];if(x){for(var k in x)e[k]=x[k]}
+  return e;
+}
+var CTL={
+ plan:{who:'A',name:'生產計畫',unit:'單位',min:0,max:800,step:10,hint:'本回合打算生產的數量',def:420},
+ buy:{who:'A',name:'原料採購',unit:'單位',min:0,max:900,step:10,hint:'本回合買進的原料，生產會消耗原料',def:420},
+ ot:{who:'A',name:'加班',unit:'%',min:0,max:40,step:1,hint:'正常工時之外加班的比例',def:0},
+ maint:{who:'A',name:'設備維護預算',unit:'元',min:0,max:2000,step:50,hint:'投入設備保養與檢修的經費',def:600},
+ insp:{who:'A',name:'品質檢驗強度',unit:'%',min:0,max:100,step:5,hint:'出貨前抽檢與檢驗的強度',def:50},
+ wage:{who:'B',name:'薪資水準',unit:'%',min:80,max:140,step:1,hint:'相對市場行情，100 ＝ 與行情相同',def:100},
+ train:{who:'B',name:'培訓預算',unit:'元',min:0,max:3000,step:50,hint:'全公司教育訓練的總經費',def:1000},
+ ben:{who:'B',name:'福利與團隊活動',unit:'元',min:0,max:2000,step:50,hint:'員工福利、團康與工作環境的經費',def:600},
+ rec:{who:'B',name:'招募人數',unit:'人',min:0,max:12,step:1,hint:'下回合到職的新進人員',def:0},
+ lay:{who:'B',name:'資遣人數',unit:'人',min:0,max:6,step:1,hint:'本回合資遣的人數（會有資遣費）',def:0}
+};
+var ORDER_A=['plan','buy','ot','maint','insp'], ORDER_B=['wage','train','ben','rec','lay'];
+
+/* ================= model ================= */
+function clamp(x,a,b){return Math.min(b,Math.max(a,x))}
+function matOf(s,ev){return ev.fire?0:s.mat}
+function VAL(m,sk,en){return 60*m+1200*sk+2500*en}
+function mach0(s,ev){return clamp(s.mach+ev.mach,0,100)}
+function effM(s,d,ev){return clamp(mach0(s,ev)+(d.maint-600)/50,0,100)}
+function effEn(s,d,ev){var w=d.wage-ev.wmkt;return clamp(s.en+0.7*(0.05*clamp(w-100,-30,20)+0.015*Math.min(d.ben/s.N-20,20)+0.004*Math.min(d.train/s.N-33,60)),1,10)}
+function busy(s,d){return 1-Math.max(0,d.maint-600)/20000-Math.max(0,d.train/s.N-33)/1000}
+function newLoss(s,d){return (s.nw||0)*(d.train/s.N>=40?0.25:0.5)}
+function capOf(s,d,ev){
+  var m=effM(s,d,ev),en=effEn(s,d,ev),Ne=s.N-0.5*s.N*turnOf(s,d,ev);
+  return Math.max(1,Ne-newLoss(s,d))*17*(0.75+0.05*s.sk)*(0.8+0.04*en)*(0.5+0.5*m/100)*(1+0.8*d.ot/100)*busy(s,d)*ev.cap;
+}
+function turnOf(s,d,ev){return clamp(0.12-0.011*s.en-0.0035*(d.wage-ev.wmkt-100)+ev.turn+0.015*Math.max(0,d.ot-10),0.02,0.35)}
+function evalDec(s,d,ev){
+  var cap=capOf(s,d,ev),avail=matOf(s,ev)+d.buy,qty=Math.min(d.plan,cap,avail);
+  var tr=turnOf(s,d,ev),left=Math.round(s.N*tr),mat2=avail-qty;
+  var pay=s.N*150*d.wage/100;
+  var c={
+    pay:pay+pay*d.ot/100*1.5, mat:d.buy*ev.price+mat2, train:d.train, ben:d.ben, maint:d.maint, insp:d.insp*10,
+    move:d.rec*250+d.lay*400+left*150
+  };
+  c.total=c.pay+c.mat+c.train+c.ben+c.maint+c.insp+c.move;
+  return {cap:cap,avail:avail,qty:qty,tr:tr,left:left,mat2:mat2,cost:c};
+}
+function check(s,d,ev){
+  var e=evalDec(s,d,ev),m=[];
+  if(d.plan>e.cap+1e-9)m.push('生產計畫超過目前產能。');
+  if(d.plan>e.avail+1e-9)m.push('原料不足：生產計畫超過現有庫存加本回合採購量。');
+  return m;
+}
+function advance(s,d,ev,noShock){
+  var e=evalDec(s,d,ev),m=mach0(s,ev),load=e.cap>0?e.qty/e.cap:1,me=effM(s,d,ev);
+  var defect=clamp(0.18-0.0012*d.insp-0.006*(s.sk-5)+0.002*d.ot+0.0008*(100-me)+(noShock?0:ev.dshock),0.02,0.35);
+  var good=e.qty*(1-defect);
+  var sold=Math.min(Math.round(good),ev.target),revenue=sold*SELL;
+  var p=d.train/s.N,b=d.ben/s.N;
+  var en2=clamp(s.en+0.05*clamp(d.wage-ev.wmkt-100,-30,20)+0.015*Math.min(b-20,20)+0.004*Math.min(p-33,60)-0.05*d.ot-0.1*Math.max(0,d.ot-10)-0.35*d.lay-3*Math.max(0,load-0.9)-0.12*(s.en-5),1,10);
+  var stay=Math.max(0,s.N-e.left-d.lay),N2=Math.max(1,stay+d.rec);
+  var sk2=clamp(((s.sk+0.012*Math.min(p-33,60))*stay+3*d.rec)/N2,1,10);
+  var m2=clamp(m-4-10*load+d.maint/60,0,100);
+  var dV=VAL(m2,sk2,en2)-VAL(mach0(s,ev),s.sk,s.en),profit=revenue-e.cost.total+dV,passed=Math.round(good)>=ev.target&&profit>=0;
+  return {
+    next:{N:N2,sk:sk2,en:en2,mach:m2,mat:e.mat2,nw:d.rec},
+    out:{revenue:revenue,dV:dV,profit:profit,passed:passed,cap:e.cap,qty:e.qty,good:good,defect:defect,ach:good/ev.target,cost:e.cost.total,unit:e.cost.total/Math.max(good,1),tr:e.tr,left:e.left,en:en2,sk:sk2,N:N2,mach:m2,mat:e.mat2}
+  };
+}
+
+/* ================= state ================= */
+function freshDec(){var d={};for(var k in CTL)d[k]=CTL[k].def;return d}
+var S;
+function init(){S={screen:'intro',idx:0,state:Object.assign({},START),dec:freshDec(),confA:false,confB:false,errors:[],last:null,history:[],log:[],violations:0,curViol:0,roundStart:0,t0:Date.now()}}
+init();
+function cur(){return SEQ[S.idx]}
+function now(){return Date.now()-S.t0}
+function logEv(type,data){S.log.push(Object.assign({t:now(),round:cur()?cur().id:null,type:type},data||{}))}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+function f0(x){return Math.round(x).toLocaleString()}
+function f1(x){return (Math.round(x*10)/10).toFixed(1)}
+function pct(x){return (x*100).toFixed(1)+'%'}
+function $(id){return document.getElementById(id)}
+
+var _init=init;init=function(){_init();S.ip=0;S.tour=-1;S.tourSeen=false;S.tFirst=null;S.smm=null;S.smmResult=null;S.teamCode=String(1000+Math.floor(Math.random()*9000))};init();
+
+/* ================= scene (SVG, viewBox 700x520) ================= */
+function wpos(i){return {x:206+(i%21)*17,y:354+Math.floor(i/21)*20}}
+function workerSVG(x,y,mood,i,cls){
+  var c=mood>=7?'var(--b)':mood>=4?'var(--a)':'var(--warn)';
+  return '<g class="worker'+(mood<4?' tired':'')+(cls?' '+cls:'')+'" style="--wdel:-'+((i*0.37)%1.6).toFixed(2)+'s;--wd:'+(mood<4?3:1.5+((i%3)*0.15)).toFixed(2)+'s"><circle cx="'+x+'" cy="'+(y-15)+'" r="5" fill="#E9C9A6"/><rect x="'+(x-6)+'" y="'+(y-9)+'" width="12" height="15" rx="4" fill="'+c+'"/>'+
+    (mood<4?'<path d="M'+(x-3)+' '+(y-14)+' q3 -3 6 0" stroke="#5B3A2A" fill="none" stroke-width="1.4"/>':'<path d="M'+(x-3)+' '+(y-13)+' q3 3 6 0" stroke="#5B3A2A" fill="none" stroke-width="1.4"/>')+'</g>';
+}
+function crewHTML(n,mood,out,rec){
+  n=Math.min(63,Math.round(n));var w='',i,p;
+  for(i=0;i<n;i++){p=wpos(i);w+=workerSVG(p.x,p.y,mood,i,i>=n-out?'leave':'')}
+  for(i=0;i<Math.min(rec,10);i++){p=wpos(Math.min(62,n+i));w+=workerSVG(p.x,p.y,5,i,'arrive')}
+  return w;
+}
+function cratesHTML(units){
+  var n=Math.min(24,Math.ceil(units/40)),h='';
+  for(var i=0;i<n;i++)h+='<rect x="'+(26+(i%6)*24)+'" y="'+(378-Math.floor(i/6)*20)+'" width="22" height="18" fill="var(--crate)" stroke="var(--crate2)"/>';
+  return h;
+}
+function gearPath(cx,cy,r){
+  var h='';for(var i=0;i<8;i++)h+='<rect x="'+(cx-3)+'" y="'+(cy-r-5)+'" width="6" height="9" fill="var(--roof)" transform="rotate('+(i*45)+' '+cx+' '+cy+')"/>';
+  return h+'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="var(--roof)"/><circle cx="'+cx+'" cy="'+cy+'" r="'+(r*0.45)+'" fill="var(--wall)"/>';
+}
+function sceneHTML(mode){
+  var s=S.state,bb='',smoke='',h,k,j,d,wx;
+  for(j=0;j<5;j++)bb+='<rect class="beltbox" x="206" y="270" width="16" height="16" rx="2" fill="var(--crate)" style="--bd:-'+j+'s"/>';
+  for(k=0;k<5;k++)smoke+='<circle cx="492" cy="46" r="11" style="animation-delay:-'+(k*0.68).toFixed(2)+'s"/>';
+  h='<div class="scene" id="scene"><svg viewBox="0 0 700 520" preserveAspectRatio="xMidYMax meet" role="img" aria-label="'+COMPANY+'的工廠：原料倉庫、員工、生產線與出貨卡車">';
+  h+='<circle cx="630" cy="70" r="28" fill="var(--sun)" opacity=".85"/>';
+  h+='<g class="cloud" style="--cd:0s"><ellipse cx="300" cy="60" rx="40" ry="13" fill="var(--smoke)" opacity=".5"/><ellipse cx="325" cy="50" rx="26" ry="12" fill="var(--smoke)" opacity=".5"/></g>';
+  h+='<g class="cloud" style="--cd:-9s"><ellipse cx="560" cy="130" rx="34" ry="11" fill="var(--smoke)" opacity=".4"/><ellipse cx="580" cy="121" rx="22" ry="10" fill="var(--smoke)" opacity=".4"/></g>';
+  h+='<g fill="var(--city)" opacity=".7"><rect x="566" y="320" width="26" height="80"/><rect x="596" y="290" width="30" height="110"/><rect x="630" y="335" width="22" height="65"/><rect x="656" y="305" width="34" height="95"/><rect x="694" y="330" width="40" height="70"/><rect x="-60" y="330" width="60" height="70"/></g>';
+  h+='<rect x="-1000" y="400" width="2700" height="50" fill="var(--ground)"/><rect x="-1000" y="450" width="2700" height="600" fill="var(--road)"/>';
+  for(d=-8;d<24;d++)h+='<rect x="'+(d*52+8)+'" y="486" width="26" height="3" fill="#E5E9EC" opacity=".7"/>';
+  h+='<g><rect x="14" y="290" width="160" height="110" fill="var(--wall2)"/><polygon points="6,290 94,246 182,290" fill="var(--roof)"/><rect x="22" y="300" width="144" height="100" fill="var(--wall)" opacity=".6"/><g id="crates"></g><text class="tick" x="94" y="238" text-anchor="middle">原料倉庫</text></g>';
+  h+='<rect x="174" y="300" width="16" height="8" fill="var(--roof)"/>';
+  h+='<g id="factory"><rect x="190" y="150" width="372" height="250" fill="var(--wall)"/>'+
+     '<polygon points="190,150 190,122 252,150 252,122 314,150 314,122 376,150 376,122 438,150 438,122 500,150 500,122 562,150" fill="var(--roof)"/>'+
+     '<rect x="478" y="50" width="28" height="76" fill="var(--roof)"/><rect x="474" y="44" width="36" height="9" fill="var(--wall2)"/>'+
+     '<g class="smoke" id="smoke" style="--smk:.7">'+smoke+'</g>';
+  for(wx=0;wx<5;wx++)h+='<rect class="win" x="'+(206+wx*68)+'" y="168" width="44" height="28" rx="2"/>';
+  h+='<text x="376" y="238" text-anchor="middle" style="font-size:22px;font-weight:700;fill:var(--ink)">'+COMPANY+'</text>'+
+     '<rect x="200" y="262" width="352" height="34" fill="var(--wall2)"/><rect x="204" y="288" width="344" height="8" fill="var(--roof)"/>'+bb+
+     '<g id="gear1" class="gear" style="--gspd:6s">'+gearPath(530,278,14)+'</g>'+
+     '<circle id="lamp" cx="546" cy="174" r="8" fill="var(--ok)"/></g>';
+  h+='<g id="crew">'+crewHTML(s.N,s.en,0,0)+'</g>';
+  h+='<g><rect x="20" y="50" width="150" height="66" rx="6" fill="var(--panel)" stroke="var(--line)"/><text class="tick" x="95" y="72" text-anchor="middle">本回合訂單</text><text id="tgtTxt" x="95" y="104" text-anchor="middle" style="font-size:26px;font-weight:600;font-family:var(--font-num);fill:var(--ink)">450</text><rect x="93" y="116" width="4" height="30" fill="var(--roof)"/></g>';
+  h+='<g id="truck" class="'+(mode==='ship'?'truck':'')+'"><rect x="566" y="430" width="92" height="46" rx="3" fill="var(--truck)"/><rect x="658" y="442" width="34" height="34" rx="3" fill="var(--truck)"/><rect x="668" y="446" width="18" height="12" fill="var(--glass)"/><g id="truckBoxes"></g><circle cx="592" cy="480" r="9" fill="#222"/><circle cx="672" cy="480" r="9" fill="#222"/></g>';
+  h+='</svg><div class="dusk"></div><div class="coach" id="coach"></div></div>';
+  return h;
+}
+function updateScene(ev,d){
+  var s=S.state;if(!$('scene'))return;
+  var e=evalDec(s,d,ev),load=e.cap>0?Math.min(1.2,e.qty/e.cap):0;
+  $('crates').innerHTML=cratesHTML(matOf(s,ev)+d.buy);
+  $('smoke').style.setProperty('--smk',(0.25+0.6*clamp(load,0,1)).toFixed(2));
+  var g=$('gear1');if(g)g.style.setProperty('--gspd',(load<0.05?60:Math.max(1.2,8-load*6.5)).toFixed(2)+'s');
+  document.querySelectorAll('.beltbox').forEach(function(b){b.style.setProperty('--bspd',(load<0.05?60:Math.max(1.8,8-load*6)).toFixed(2)+'s')});
+  var m=mach0(s,ev);$('lamp').setAttribute('fill',m<40?'var(--warn)':m<65?'#D9A21B':'var(--ok)');
+  $('scene').classList.toggle('night',d.ot>=15);
+  $('tgtTxt').textContent=f0(ev.target);
+}
+
+/* ================= views ================= */
+function roundLabel(){
+  if(S.screen==='end')return '結算';if(S.screen==='intro')return '';
+  var r=cur();if(r.practice)return '練習回合 '+r.id.slice(1)+' / 2（不計分）';if(r.smm)return 'T2 心智模型測量';return '第 '+r.id.slice(1)+' 回合 / 共 8';
+}
+function strip(){
+  var h='<div class="strip" aria-label="進度">';
+  SEQ.forEach(function(r,i){h+='<span class="chip'+(r.practice?' gap':'')+(i<S.idx?' done':'')+(i===S.idx&&S.screen!=='end'&&S.screen!=='intro'?' now':'')+'" title="'+(r.practice?'練習':r.smm?'心智模型測量':'正式回合')+'">'+r.label+'</span>'});
+  return h+'</div>';
+}
+function topbar(play){
+  return '<header class="top"><div class="brand"><b>'+COMPANY+'</b><span>'+roundLabel()+'</span><span class="num" title="團隊代碼（問卷要輸入）">團隊代碼 '+S.teamCode+'</span></div>'+strip()+'<div class="tools">'+(play?'<span class="timer" id="timer" title="建議討論時間">05:00</span><button class="btn ghost sm" id="gloss">名詞說明</button><button class="btn ghost sm" id="help">操作說明</button>':'')+'</div></header>';
+}
+function kpi(k,v,frac){return '<div class="k"><span class="l">'+T(k)+'</span><span class="v">'+v+'</span>'+(frac!=null?'<div class="bar"><i style="width:'+Math.round(clamp(frac,0,1)*100)+'%"></i></div>':'')+'</div>'}
+function kstrip(ev){
+  var s=S.state,m=mach0(s,ev);
+  return '<div class="kstrip" id="kstrip"><span class="kt">公司現況</span>'+[['員工人數',f0(s.N),s.N/60],['員工技能',f1(s.sk),s.sk/10],['員工投入度',f1(s.en),s.en/10],['機器狀態',f0(m)+'%',m/100],['原料庫存',f0(matOf(s,ev)),matOf(s,ev)/800]].map(function(a){return kpi(a[0],a[1],a[2])}).join('')+'</div>';
+}
+function fstrip(){
+  return '<div class="fstrip" id="fstrip"><span class="kt">本季預估</span>'+
+   [['fc1','預計良品／目標'],['fc2','預計達成率'],['fc3','預計營收／成本'],['fc4','預計損益'],['fc5','預計離職人數']].map(function(a){return '<div class="k" id="'+a[0]+'"><span class="l">'+T(a[1])+'</span><span class="v"></span><div class="bar"><i style="width:0"></i></div></div>'}).join('')+'</div>';
+}
+
+/* ===== 名詞小提示：名詞旁的「？」，點一下顯示說明 ===== */
+var TIPS={
+ '生產計畫':'這一季打算做幾件。實際產量 = 生產計畫、工廠產能、可用原料三者中最小的那一個。',
+ '原料採購':'這一季買進幾單位原料（單價見上方任務單）。每做一件用掉一單位；用不完的庫存要付保管費。',
+ '加班':'員工在正常工時之外多做的比例。產能會增加，但加班費較貴、員工投入度會下降、不良率也會上升。',
+ '設備維護預算':'花在保養與檢修機器的錢。機器每季會自然老化，維護能讓它恢復；機器狀態越好，產能越高、不良率越低。',
+ '品質檢驗強度':'出貨前檢驗的強度。越高，不良品越少，但每 1% 要花 10 元。',
+ '薪資水準':'相對市場行情的薪資，100 表示與行情相同。越高員工越不想離職、越投入，但人事成本也越高。',
+ '培訓預算':'全公司教育訓練的總經費。能慢慢提高員工技能；技能越高，產能越高、不良率越低。效果要幾季才看得到。',
+ '福利與團隊活動':'員工福利、團康與工作環境的經費。主要用來提高員工投入度，也會讓人比較不想離職。',
+ '招募人數':'增加新員工，下一回合才到職（每人招募費 250）。新人技能較低，會稀釋全公司平均技能。',
+ '資遣人數':'請員工離開。每人資遣費 400，而且會嚴重打擊留下員工的投入度。',
+ '員工人數':'目前公司有幾位員工。人越多產能越高，但人事成本也越高。',
+ '員工技能':'員工做事的熟練程度（1–10）。技能越高，產能越高、不良率越低。靠培訓慢慢提升。',
+ '員工投入度':'員工工作的積極程度（1–10）。越高產能越好、離職越少；薪資、福利、培訓會提高它，加班、資遣、過勞會降低它。',
+ '機器狀態':'機器的健康程度（0–100%）。越好，產能越高、不良率越低；每季會自然老化，用得越滿老化越快。',
+ '原料庫存':'目前倉庫裡還沒用掉的原料。',
+ '預計良品／目標':'以目前的拉桿估算，這一季能做出幾件良品，對比客戶訂單要的件數。良品 = 產量 ×（1 − 不良率）。實際不良率可能略有波動。',
+ '預計達成率':'預計良品 ÷ 訂單件數。100% 表示剛好達標，建議多留一點餘裕。',
+ '預計營收／成本':'營收是賣出良品的錢（最多算到訂單件數）。成本是這一季所有支出：人事、原料、培訓、福利、維護、檢驗、人員異動。',
+ '預計損益':'預計營收 − 預計成本 + 資產價值變動。為負或良品不足，這一季都不算過關。',
+ '預計離職人數':'依薪資、投入度與當季事件估算，這一季大約有幾位員工會離職。',
+ '①產能':'工廠這一季最多能做幾件。取決於人數、技能、投入度、機器狀態、加班與特別事件。生產計畫不能超過它。',
+ '②原料':'生產計畫不能超過「庫存 + 本季採購」的原料量。',
+ '③營收與成本':'上面的彩色長條是各項成本，黑線是預計營收。長條沒超過黑線才有賺。「資產價值」是機器、技能、投入度的增減，砍維護、培訓、福利會使它下降。',
+ '過關':'每季要同時做到兩件事：交足訂單件數的良品，且損益（營收 − 成本 + 資產價值變動）不為負。',
+ '資產價值變動':'機器狀態、員工技能、員工投入度的增減折算成金額。投資它們會增值；砍掉維護、培訓、福利，當季省錢但資產貶值。',
+ '本季損益':'營收 − 總成本 + 資產價值變動。',
+ '總成本':'人事、原料、培訓、福利、維護、檢驗與人員異動的支出總和。',
+ '目標達成率':'良品數 ÷ 訂單件數。100% 表示剛好達標。',
+ '營收':'賣出良品得到的錢：每件固定售價，最多算到訂單件數。'
+};
+function T(label,key){var k=key||label;return TIPS[k]?label+'<button type="button" class="ti" data-tip="'+k+'" aria-label="'+k+' 說明">?</button>':label}
+function closeTip(){var t=document.getElementById('tipbox');if(t)t.remove()}
+document.addEventListener('click',function(e){
+  var b=e.target.closest&&e.target.closest('.ti');
+  if(!b){if(!(e.target.closest&&e.target.closest('#tipbox')))closeTip();return}
+  e.preventDefault();e.stopPropagation();
+  var k=b.getAttribute('data-tip'),was=document.getElementById('tipbox');closeTip();
+  if(was&&was.getAttribute('data-for')===k)return;
+  var d=document.createElement('div');d.id='tipbox';d.className='tipbox';d.setAttribute('role','dialog');d.setAttribute('data-for',k);
+  d.innerHTML='<b>'+k+'</b><p>'+TIPS[k]+'</p><button type="button" class="tl" id="tipAll">看全部名詞說明</button>';
+  document.body.appendChild(d);
+  var r=b.getBoundingClientRect(),w=d.offsetWidth,h=d.offsetHeight;
+  var x=Math.min(Math.max(8,r.left+r.width/2-w/2),innerWidth-w-8),y=r.bottom+8;if(y+h>innerHeight-8)y=Math.max(8,r.top-h-8);
+  d.style.left=x+'px';d.style.top=y+'px';
+  document.getElementById('tipAll').onclick=function(){closeTip();openGloss()};
+},true);
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeTip()});
+function sliderRow(k){
+  var c=CTL[k],id='r-'+k,hh=c.hint;if(k==='wage'){var ev0=roundInfo(cur().id);if(ev0.wmkt)hh='⚠ 本季市場行情已漲到 '+(100+ev0.wmkt)+'：要拉到 '+(100+ev0.wmkt)+' 才跟上行情；維持 100 等於相對降薪，員工較易離職、投入度下降'}
+  return '<div class="srow"><label class="nm" for="'+id+'">'+T(c.name)+'</label><span class="nin"><input type="number" id="n-'+k+'" data-k="'+k+'" min="'+c.min+'" max="'+c.max+'" step="'+c.step+'" value="'+S.dec[k]+'" aria-label="'+c.name+'數值"><span class="u">'+c.unit+'</span></span>'+
+   '<input type="range" id="'+id+'" data-k="'+k+'" min="'+c.min+'" max="'+c.max+'" step="'+c.step+'" value="'+S.dec[k]+'"><div class="hint">'+hh+'</div></div>';
+}
+
+function intelBox(w){
+  var id=cur().id,it=INTEL[id];if(!it)return '';
+  return '<div class="intel"><button type="button" class="ibtn" data-who="'+w+'" aria-expanded="false"><span class="lock">🔒</span> 部門情報（僅成員 '+w+' 閱讀）<small>按住查看</small></button><div class="itxt" id="itxt'+w+'" hidden>'+it[w]+'</div></div>';
+}
+var _ip={};
+function peekOn(b){var w=b.getAttribute('data-who');if(_ip[w])return;_ip[w]=Date.now();b.setAttribute('aria-expanded','true');var t=document.getElementById('itxt'+w);if(t)t.hidden=false;b.classList.add('on')}
+function peekOff(b){var w=b.getAttribute('data-who');if(!_ip[w])return;var ms=Date.now()-_ip[w];_ip[w]=0;b.setAttribute('aria-expanded','false');var t=document.getElementById('itxt'+w);if(t)t.hidden=true;b.classList.remove('on');logEv('intel_peek',{who:w,ms:ms})}
+document.addEventListener('pointerdown',function(e){var b=e.target.closest&&e.target.closest('.ibtn');if(b){e.preventDefault();peekOn(b)}});
+['pointerup','pointercancel'].forEach(function(n){document.addEventListener(n,function(){document.querySelectorAll('.ibtn.on').forEach(peekOff)})});
+document.addEventListener('keydown',function(e){var b=document.activeElement;if(b&&b.classList&&b.classList.contains('ibtn')&&(e.key===' '||e.key==='Enter')){e.preventDefault();if(!e.repeat)peekOn(b)}});
+document.addEventListener('keyup',function(e){var b=document.activeElement;if(b&&b.classList&&b.classList.contains('ibtn')&&(e.key===' '||e.key==='Enter'))peekOff(b)});
+document.addEventListener('contextmenu',function(e){if(e.target.closest&&e.target.closest('.ibtn'))e.preventDefault()});
+function panel(w){
+  var A=w==='A';
+  return '<section class="pan role '+(A?'a':'b')+'" id="pan'+w+'"><header><h2>成員 '+w+'　'+(A?'營運':'人資')+'</h2><span>'+(A?'生產・原料・設備・品質':'薪資・培訓・福利・人力')+'</span></header><div class="sl">'+(A?ORDER_A:ORDER_B).map(sliderRow).join('')+'</div>'+intelBox(w)+'<div class="confirm"><span class="okpill" id="pill'+w+'"></span><button class="btn ghost" id="c'+w+'"></button></div></section>';
+}
+var TOUR=[
+ {t:'你們的任務',d:'你們是這間工廠新上任的兩位經理。每個回合代表一季，你們要一起決定這一季怎麼經營：生產夠不夠、花費省不省、員工留不留得住。',sel:'#scene'},
+ {t:'先看任務單',d:'每一季開始前先看這張任務單：客戶訂單要幾件良品、每件賣多少錢、這一季有沒有特別事件。過關條件是：交足訂單件數，而且這一季損益（營收－總成本＋資產價值變動）不能是負的。',sel:'#mission'},
+ {t:'兩人分工',d:'左邊是成員 A（營運）：管生產、原料、設備、品質。右邊是成員 B（人資）：管薪資、培訓、福利、人力。先一起討論，再各自拉自己那一邊的拉桿，也可以直接輸入數字。',sel:'#panA,#panB'},
+ {t:'看預估，不要超標',d:'每拉一次，「本季預估」會立刻更新：預計做出多少良品、達成率、花多少錢。下方三項檢查任何一項變紅，提交就會被退回。',sel:'#fstrip,#chk1,#chk2,#chk3'},
+ {t:'確認並提交',d:'兩人討論好後，A 與 B 各按一次「確認」，再按右下角的「提交」。練習回合不計分，可以放心嘗試。不懂的詞可以按右上角「名詞說明」。',sel:'#cA,#cB,#submit'},
+ {t:'看結果、下一季調整',d:'提交後工廠會出貨，並顯示這一季的結果。有些決策的效果要下一季才會出現，請從練習回合開始觀察、討論。',sel:'#kstrip'}
+];
+function viewPlay(){
+  var r=cur(),ev=roundInfo(r.id);
+  var note=ev.text?'<div class="evl hot"><b>特別事件　</b>'+ev.text+'</div>':(r.practice?'<div class="evl"><b>練習回合　</b>'+(r.id==='P1'?'先熟悉操作，不計分。':'不計分；結束後公司狀態會重置為初始狀態。')+'</div>':'');
+  var h='<div class="hud">'+topbar(true)+panel('A');
+  h+='<main class="mid"><div class="banner" id="banner"><div class="mission" id="mission"><b>本季任務</b>　交出 <b class="num">'+f0(ev.target)+'</b> 件良品（客戶訂單）　·　每件售價 <b class="num">'+SELL+'</b>　·　'+T('過關')+'：交足件數且損益 ≥ 0　·　原料單價 <b class="num">'+ev.price+'</b></div>'+note+'<div class="hl" id="hint"></div></div>'+sceneHTML('play')+kstrip(ev)+fstrip()+'</main>';
+  h+=panel('B');
+  h+='<footer class="bot">'+
+   '<div class="card chk" id="chk1"><div class="row"><b>'+T('① 產能','①產能')+'</b><span class="status" id="st1"></span></div><div class="track"><div class="fill" id="f1"></div><div class="mark" id="m1"><span id="m1t"></span></div></div><div class="mt" id="t1"></div></div>'+
+   '<div class="card chk" id="chk2"><div class="row"><b>'+T('② 原料','②原料')+'</b><span class="status" id="st2"></span></div><div class="track"><div class="fill" id="f2"></div><div class="mark" id="m2"><span id="m2t"></span></div></div><div class="mt" id="t2"></div></div>'+
+   '<div class="card chk" id="chk3"><div class="row"><b>'+T('③ 營收與成本','③營收與成本')+'</b><span class="status" id="st3"></span></div><div class="track"><div class="stack" id="f3"></div><div class="mark r" id="m3" style="left:50%"><span id="m3t"></span></div></div><div class="legend" id="lg3"></div></div>'+
+   '<div class="card sub"><button class="btn big" id="submit">提交本回合決策</button><div class="notice">A、B 都按「確認」後才能提交</div></div></footer></div>';
+  return h;
+}
+var GLOSS=[['回合','一個回合代表公司營運的一季。'],['訂單目標','這一季客戶要的良品數量。'],['良品／不良率','良品是合格的產品，不合格的不算數。不良率是做出來的產品中不合格的比例。'],['產能','這一季工廠最多能生產幾件。'],['原料','生產要消耗的材料，每做一件用掉一單位。用不完的庫存要付保管費。'],['營收／損益','營收是賣出良品得到的錢（每件固定售價，最多算到訂單件數）。損益＝營收－總成本＋資產價值變動。為負就是虧損，這一季不算過關。'],['資產價值','公司的機器狀態、員工技能與員工投入度都是資產。維護、培訓、福利讓它們增值；砍掉這些支出雖然當季省錢，但資產貶值，損益並不會變好。'],['總成本','人事、原料、培訓、福利、維護、檢驗與人員異動的支出總和。'],['員工技能','員工做事的熟練程度（1–10）。'],['員工投入度','員工工作的積極程度（1–10）。'],['離職率','這一季有多少比例的員工離職。'],['機器狀態','機器的健康程度（0–100%）。'],['加班','員工在正常工時之外多工作的比例。'],['招募／資遣','招募是增加新員工，下一回合到職；資遣是請員工離開，要付資遣費。'],['目標達成率','良品數 ÷ 訂單目標。100% 表示剛好達標。'],['單位成本','這一季總成本 ÷ 良品數，越低表示越省。']];
+function glossHTML(){return '<dl class="gl">'+GLOSS.map(function(g){return '<dt>'+g[0]+'</dt><dd>'+g[1]+'</dd>'}).join('')+'</dl>'}
+function openGloss(){
+  if($('ov'))return;var d=document.createElement('div');d.className='ov';d.id='ov';
+  d.innerHTML='<div class="sheet" role="dialog" aria-label="名詞說明"><h2>名詞說明</h2>'+glossHTML()+'<div><button class="btn" id="ovClose">關閉</button></div></div>';
+  document.body.appendChild(d);
+  function close(){var o=$('ov');if(o)o.remove();document.removeEventListener('keydown',esc2)}
+  function esc2(e){if(e.key==='Escape')close()}
+  document.addEventListener('keydown',esc2);$('ovClose').onclick=close;d.onclick=function(e){if(e.target===d)close()};$('ovClose').focus();
+}
+function viewIntro(){
+  var pages=[
+   '<h1>雙人公司經營模擬</h1><p class="notice">研究用遊戲原型（規則為暫定版）。不需要任何商業或經濟背景。</p><h2>你們的任務</h2><p>你們兩位是「'+COMPANY+'」新上任的經理。這是一間製造商品的工廠，有 30 名員工。接下來有 8 個回合，每個回合代表公司營運的一季。每一季你們要一起決定怎麼經營，讓公司同時做到四件事：</p><ul class="plain"><li><b>做得夠</b>：做出來的良品數量要達到客戶的訂單（達成率越接近或超過 100% 越好）。</li><li><b>花得省</b>：每件產品的平均成本越低越好。</li><li><b>員工有幹勁</b>：員工的投入度越高越好。</li><li><b>留得住人</b>：離職的員工越少越好。</li></ul><p>這四件事會互相拉扯，例如多加班可以多做，但員工會比較累。沒有標準答案，要靠兩人討論、取捨。</p>',
+   '<h2>每一季怎麼進行</h2><div class="steps"><div><b>1</b>看任務單<span>這一季訂單幾件、每件賣多少、有沒有特別事件</span></div><div><b>2</b>兩人討論<span>要生產多少？錢怎麼分配？員工撐得住嗎？</span></div><div><b>3</b>各自拉拉桿<span>每人只調整自己負責的項目</span></div><div><b>4</b>確認並提交<span>A、B 各按「確認」，再按「提交」</span></div><div><b>5</b>看結果<span>工廠出貨，顯示這一季成績，進入下一季</span></div></div><div class="mini"><div class="a">成員 A　營運<br>生產・原料・設備・品質</div><div class="m">中間：工廠畫面、任務單與本季預估</div><div class="b">成員 B　人資<br>薪資・培訓・福利・人力</div><div class="bt">下方：兩項檢查（產能、原料）＋ 營收／成本／損益 ＋ 提交</div></div><p class="notice">兩人共用同一台電腦：A 負責左邊面板，B 負責右邊面板，並排坐著面對面討論。前兩個回合是練習，不計分。</p>',
+   '<h2>先認識幾個詞</h2>'+glossHTML()+'<p class="notice">遊戲中隨時可以按右上角的「名詞說明」再看一次。提交前系統會檢查：生產不能超過產能、不能超過現有原料，不通過會被退回。至於「交足訂單件數」與「利潤不為負」，不符合時仍可提交，但這一季會記為未過關。另外，預估只是平均情況，實際結果常有小幅波動（例如不良率），建議在訂單件數上多留約 5% 的安全餘裕。</p>'
+  ];
+  var p=S.ip,dots='';for(var i=0;i<pages.length;i++)dots+='<i class="'+(i===p?'on':'')+'"></i>';
+  return '<div class="hud plain">'+topbar(false)+'<div class="screen"><div class="sheet">'+pages[p]+'<div class="navrow"><div class="dots">'+dots+'</div><div style="display:flex;gap:.5rem">'+(p>0?'<button class="btn ghost" id="introPrev">上一頁</button>':'')+(p<pages.length-1?'<button class="btn" id="introNext">下一頁</button>':'<button class="btn" id="start">開始練習回合 P1</button>')+'</div></div></div></div></div>';
+}
+function viewHistory(){
+  if(!S.history.length)return '<p class="notice">練習回合不列入紀錄。正式回合的成績會顯示在這裡。</p>';
+  var rows=S.history.map(function(x){return '<tr><td>'+x.id+'</td><td>'+f0(x.good)+'</td><td>'+pct(x.ach)+'</td><td>'+(x.profit>=0?'+':'')+f0(x.profit)+'</td><td>'+(x.passed?'✓ 過關':'✗ 未過')+'</td></tr>'}).join('');
+  return '<div class="tw"><table><tr><th>回合</th><th>良品</th><th>達成</th><th>損益</th><th>結果</th></tr>'+rows+'</table></div>';
+}
+function cg(k,val,kind,bar){
+  return '<div class="k"><span class="l">'+T(k)+'</span><span class="v"><span data-count="'+val+'" data-kind="'+kind+'">0</span></span>'+(bar!=null?'<div class="bar"><i data-w="'+Math.round(clamp(bar,0,1)*100)+'%" style="width:0"></i></div>':'')+'</div>';
+}
+function viewResult(){
+  var x=S.last,id=S.lastId;
+  var h='<div class="hud">'+topbar(false)+'<section class="pan role a" style="background:var(--panel);border-color:var(--line)"><header><h2>'+id+' 成績</h2><span>數字會逐一跳動顯示</span></header><div class="kgrid">'+
+   cg('目標達成率',x.ach,'pct',x.ach/1.2)+cg('營收',x.revenue,'int',null)+cg('資產價值變動',x.dV,'int',null)+cg('總成本',x.cost,'int',null)+cg('本季損益',x.profit,'int',null)+cg('員工投入度',x.en,'dec',x.en/10)+cg('機器狀態',x.mach,'int',x.mach/100)+cg('下回合人數',x.N,'int',x.N/60)+'</div></section>';
+  h+='<main class="mid"><div class="banner"><div class="hl '+(x.passed?'good':'bad')+'"><b>'+(x.passed?'✓ 本季過關':'✗ 本季未過關')+'</b>　生產 '+f0(x.qty)+' 件，不良率 '+pct(x.defect)+'，良品 '+f0(x.good)+' 件；訂單 '+f0(S.lastTarget)+' 件。'+(x.passed?'':(x.good<S.lastTarget?'原因：良品少了 '+f0(S.lastTarget-x.good)+' 件。':'')+(x.profit<0?'原因：損益 '+f0(x.profit)+'（營收 '+f0(x.revenue)+'、成本 '+f0(x.cost)+'、資產價值變動 '+f0(x.dV)+'）。':''))+'</div></div>'+sceneHTML('ship')+'</main>';
+  h+='<section class="pan role b" style="background:var(--panel);border-color:var(--line)"><header><h2>回合紀錄</h2><span>正式回合累計</span></header>'+viewHistory()+'</section>';
+  h+='<footer class="bot res"><div class="card chk"><div class="row"><b>目標達成</b><span class="status '+(x.ach>=1?'good':'bad')+'">'+pct(x.ach)+(x.profit<0?'（但虧損）':'')+'</span></div><div class="track"><div class="fill" id="fa" style="background:'+(x.ach>=1?'var(--ok)':'var(--warn)')+'"></div><div class="mark r" style="left:'+(100/1.2).toFixed(1)+'%"><span>目標 100%</span></div></div></div><div class="card sub"><button class="btn big" id="next">繼續</button></div></footer></div>';
+  return h;
+}
+var QURL='https://claude.ai/artifact/AmiC1WtR2XgkYEN71veePb';
+function newSmm(){return {doneA:false,doneB:false}}
+function viewSMM(){
+  var m=S.smm;
+  return '<div class="hud plain">'+topbar(false)+'<div class="screen"><div class="sheet"><h2>T2　請受試者完成問卷</h2><p>遊戲暫停。請兩位受試者<b>各自用自己的裝置</b>開啟問卷，同時作答。作答期間不要討論，也不要看對方的螢幕。</p>'+
+  '<div class="tcode"><span>團隊代碼</span><b class="num">'+S.teamCode+'</b></div>'+
+  '<ol class="plain"><li>開啟問卷頁面：<a href="'+QURL+'" target="_blank" rel="noopener noreferrer">'+QURL+'</a></li><li>輸入上面的團隊代碼，並選擇自己的角色（成員 A 或成員 B）。</li><li>完成 Task MM（36 題）、Team Interaction MM（合作方式、職能知識、決策預測，共 41 題）與規則檢核（4 題），共 81 題，約 15–20 分鐘。</li><li>作答完成後，請研究者收取每個人的作答紀錄。</li></ol>'+
+  '<div class="chks"><span class="muted">研究者確認：</span><label><input type="checkbox" id="ckA"'+(m.doneA?' checked':'')+'> 成員 A 已完成</label><label><input type="checkbox" id="ckB"'+(m.doneB?' checked':'')+'> 成員 B 已完成</label></div>'+
+  '<div><button class="btn" id="smmDone"'+(m.doneA&&m.doneB?'':' disabled')+'>兩人都完成，繼續 R5</button></div></div></div></div>';
+}
+function bindSMM(){
+  var m=S.smm;if(!m)return;
+  ['A','B'].forEach(function(w){var el=$('ck'+w);if(el)el.onchange=function(){m['done'+w]=el.checked;logEv('smm_check',{who:w,done:el.checked});render()}});
+}
+function perf(id){return S.history.filter(function(x){return x.id===id})[0]||null}
+function viewEnd(){
+  function avgOf(re){var xs=S.history.filter(function(x){return re.test(x.id)});if(!xs.length)return null;var m=function(k){return xs.reduce(function(s,x){return s+x[k]},0)/xs.length};return {ach:m('ach'),unit:m('unit'),profit:m('profit'),pass:m('passed'),en:m('en'),tr:m('tr'),n:xs.length}}
+  var pre=avgOf(/^R[1-4]$/),post=avgOf(/^R[5-8]$/);
+  function row(p,l){return p?'<tr><td>'+l+'</td><td>'+pct(p.ach)+'</td><td>'+f0(p.profit)+'</td><td>'+(p.pass*p.n).toFixed(0)+' / '+p.n+'</td><td>'+f1(p.unit)+'</td><td>'+f1(p.en)+'</td><td>'+pct(p.tr)+'</td></tr>':''}
+  var json=JSON.stringify({team_code:S.teamCode,mode:(typeof NET!=='undefined'&&NET?'two_computers':'one_computer'),local_role:(typeof NET!=='undefined'&&NET?NET.role:null),violations:S.violations,rounds:S.history,control_pre_T2_mean_R1_R4:pre,outcome_post_T2_mean_R5_R8:post,t2_questionnaire:'separate page (collected by researcher)',events:S.log},null,1);
+  var full='<tr><th>回合</th><th>良品</th><th>達成</th><th>損益</th><th>過關</th><th>單位成本</th><th>投入度</th><th>離職率</th><th>人數</th><th>退回</th><th>首次確認(秒)</th><th>提交(秒)</th></tr>'+S.history.map(function(x){return '<tr><td>'+x.id+'</td><td>'+f0(x.good)+'</td><td>'+pct(x.ach)+'</td><td>'+f0(x.profit)+'</td><td>'+(x.passed?'✓':'✗')+'</td><td>'+f1(x.unit)+'</td><td>'+f1(x.en)+'</td><td>'+pct(x.tr)+'</td><td>'+f0(x.N)+'</td><td'+(x.viol?' class="viol"':'')+'>'+x.viol+'</td><td>'+(x.t1==null?'-':Math.round(x.t1/1000))+'</td><td>'+Math.round(x.t2/1000)+'</td></tr>'}).join('');
+  var R=S.smmResult,fm=function(z){return z&&z.r!=null?'r = '+z.r.toFixed(2)+'，相似度 '+z.sim.toFixed(2):'無法計算（某一方評分沒有變異）'};
+  var smmH=R?'<h3>心智模型測量（T2）</h3><ul class="plain"><li>Task MM 相似性：'+fm(R.task)+'</li><li>Team Interaction MM 相似性：'+fm(R.team)+'</li><li>操作檢核答對：成員 A '+R.chk.A+' / '+R.chk.total+'，成員 B '+R.chk.B+' / '+R.chk.total+'；先作答者：成員 '+R.first+'</li></ul><p class="notice">相似性為兩人配對評分的 Pearson 相關，再以 (r+1)/2 轉成 0–1。正式分析要用 QAP 檢定與準確性（需先建立參照矩陣），此處只是快速檢視。</p>':'';
+  return '<div class="hud plain">'+topbar(false)+'<div class="screen"><div class="sheet wide"><h1>遊戲結束</h1><p>被系統退回的提交共 <b class="num">'+S.violations+'</b> 次（次要績效指標）。</p>'+
+  '<h3>績效指標（原始值）</h3><div class="tw"><table><tr><th>階段</th><th>目標達成率</th><th>平均損益</th><th>過關數</th><th>單位成本</th><th>投入度</th><th>離職率</th></tr>'+row(pre,'T2 前：R1–R4 平均（控制變項）')+row(post,'T2 後：R5–R8 平均（主要依變項）')+'</table></div>'+smmH+
+  '<p class="notice">正式分析時，各指標（達成率、單位成本、投入度、離職率）要在全體團隊中標準化（單位成本與離職率反向）後取平均；損益與「過關」是遊戲內的即時回饋，建議不納入主要分析。</p><h3>全部回合</h3><div class="tw"><table>'+full+'</table></div>'+
+  '<h3>完整資料紀錄（JSON）</h3><p class="notice">包含每回合決策、輸入時間、被退回原因與各變數。請複製後存檔。</p><textarea id="logbox" readonly>'+esc(json)+'</textarea><div><button class="btn ghost" id="copy">複製資料</button> <span id="copied" class="notice"></span> <button class="btn ghost" id="again" style="float:right">重新開始</button></div></div></div></div>';
+}
+
+/* ================= live refresh ================= */
+function setBar(fid,frac,over){var f=$(fid);f.style.width=clamp(frac,0,1)*100+'%';f.classList.toggle('over',!!over)}
+function hintText(msgs){
+  if(msgs.length)return ['bad',(S.errors.length?'提交被退回：':'目前會被退回：')+msgs.join(' ')+' 請調整拉桿。'];
+  if(S.confA&&S.confB)return ['good','兩人都已確認，請按右下角「提交本回合決策」。'];
+  if(S.confA)return ['','A 已確認，等待 B 確認。'];
+  if(S.confB)return ['','B 已確認，等待 A 確認。'];
+  return ['','先一起討論：這一季要做多少？原料夠不夠？賣得出去賺不賺錢？員工撐得住嗎？再各自調整自己那一邊的拉桿，最後各按「確認」。'];
+}
+function refreshLive(){
+  var r=cur(),ev=roundInfo(r.id),s=S.state,d=S.dec,e=evalDec(s,d,ev);
+  var cap=e.cap,scale=Math.max(800,cap*1.1,e.avail*1.1);
+  var over1=d.plan>cap+1e-9;
+  setBar('f1',d.plan/scale,over1);$('m1').style.left=(cap/scale*100)+'%';$('m1').classList.toggle('r',cap/scale>0.6);$('m1t').textContent='產能 '+f0(cap);
+  $('st1').textContent=over1?'超過 '+f0(d.plan-cap):'通過';$('st1').className='status '+(over1?'bad':'good');
+  $('t1').innerHTML='計畫 <b class="num">'+f0(d.plan)+'</b> → 實際產量 <b class="num">'+f0(e.qty)+'</b>（取計畫、產能、原料最小者）；目標 '+f0(ev.target);
+  var over2=d.plan>e.avail+1e-9;
+  setBar('f2',d.plan/scale,over2);$('m2').style.left=(e.avail/scale*100)+'%';$('m2').classList.toggle('r',e.avail/scale>0.6);$('m2t').textContent='可用原料 '+f0(e.avail);
+  $('st2').textContent=over2?'不足 '+f0(d.plan-e.avail):'通過';$('st2').className='status '+(over2?'bad':'good');
+  $('t2').innerHTML='庫存 <b class="num">'+f0(matOf(s,ev))+'</b> ＋ 採購 <b class="num">'+f0(d.buy)+'</b>；用完剩 <b class="num">'+f0(e.mat2)+'</b>（剩餘有保管費）';
+  var c=e.cost,fo0=advance(s,d,ev,true).out,over3=fo0.profit<0,sc3=Math.max(c.total,fo0.revenue,1)*1.15;
+  var seg=[['人事',c.pay,'#2B5C8A'],['原料',c.mat,'#5B8F7B'],['培訓',c.train,'#B58A2C'],['福利',c.ben,'#B5532C'],['維護',c.maint,'#7B5BA0'],['品檢',c.insp,'#3F8FA0'],['異動',c.move,'#8A8F95']];
+  var st=$('f3');st.style.width=clamp(c.total/sc3,0,1)*100+'%';$('m3').style.left=(fo0.revenue/sc3*100)+'%';$('m3t').textContent='營收 '+f0(fo0.revenue);
+  st.innerHTML=seg.map(function(x){return '<i style="flex:'+Math.max(x[1],0.001)+' 1 0;background:'+x[2]+'"></i>'}).join('');
+  $('st3').textContent=over3?'損益 '+f0(fo0.profit):'損益 +'+f0(fo0.profit);$('st3').className='status '+(over3?'bad':'good');
+  $('lg3').innerHTML=seg.map(function(x){return '<span><b class="sw" style="background:'+x[2]+'"></b>'+x[0]+' '+f0(x[1])+'</span>'}).join('')+'<span>合計 <b class="num">'+f0(c.total)+'</b></span><span>資產價值 '+(fo0.dV>=0?'+':'')+f0(fo0.dV)+'</span>';
+  updateScene(ev,d);
+  var fo=advance(s,d,ev,true).out;
+  function ft(id,v,frac,bad){var el=$(id);el.querySelector('.v').textContent=v;var b=el.querySelector('.bar i');b.style.width=Math.round(clamp(frac,0,1)*100)+'%';b.style.background=bad?'var(--warn)':'var(--ink)'}
+  ft('fc1',f0(fo.good)+' / '+f0(ev.target),fo.good/ev.target/1.2,false);
+  ft('fc2',pct(fo.ach),fo.ach/1.2,fo.ach<1);
+  ft('fc3',f0(fo.revenue)+' / '+f0(c.total),c.total/sc3,over3);
+  ft('fc4',(fo.profit>=0?'+':'')+f0(fo.profit),Math.abs(fo.profit)/sc3*3,fo.profit<0);
+  ft('fc5',fo.left+' 人',fo.left/Math.max(1,s.N)/0.3,false);
+  var ht=hintText(check(s,d,ev));$('hint').textContent=ht[1]+(ht[0]===''||ht[0]==null?'':'');var pf=fo.passed?'　預估：可過關':'　預估：'+(fo.good<ev.target?'良品差 '+f0(ev.target-fo.good)+' 件':'')+(fo.profit<0?(fo.good<ev.target?'、':'')+'虧損 '+f0(-fo.profit):'')+'，目前不會過關';if(!ht[0])$('hint').textContent=ht[1]+pf;$('hint').className='hl '+ht[0];
+  $('pillA').textContent=S.confA?'A 已確認':'A 尚未確認';$('pillA').className='okpill'+(S.confA?' yes':'');
+  $('pillB').textContent=S.confB?'B 已確認':'B 尚未確認';$('pillB').className='okpill'+(S.confB?' yes':'');
+  $('cA').textContent=S.confA?'取消確認':'A 確認';$('cB').textContent=S.confB?'取消確認':'B 確認';
+  $('submit').disabled=!(S.confA&&S.confB);
+  ORDER_A.forEach(function(k){$('r-'+k).disabled=S.confA;$('n-'+k).disabled=S.confA});
+  ORDER_B.forEach(function(k){$('r-'+k).disabled=S.confB;$('n-'+k).disabled=S.confB});
+}
+function showTour(){
+  var c=$('coach');document.querySelectorAll('.spot').forEach(function(e){e.classList.remove('spot')});
+  if(!c)return;
+  if(S.tour<0){c.style.display='none';return}
+  var st=TOUR[S.tour];c.style.display='block';
+  c.innerHTML='<div class="cstep">操作導覽 '+(S.tour+1)+' / '+TOUR.length+'</div><h3>'+st.t+'</h3><p>'+st.d+'</p><div class="cbtn"><button class="btn ghost sm" id="tSkip">略過</button><span style="flex:1"></span>'+(S.tour>0?'<button class="btn ghost sm" id="tPrev">上一步</button>':'')+'<button class="btn sm" id="tNext">'+(S.tour===TOUR.length-1?'開始操作':'下一步')+'</button></div>';
+  document.querySelectorAll(st.sel).forEach(function(e){e.classList.add('spot')});
+  $('tSkip').onclick=function(){S.tour=-1;showTour()};
+  $('tNext').onclick=function(){S.tour=S.tour>=TOUR.length-1?-1:S.tour+1;showTour()};
+  if($('tPrev'))$('tPrev').onclick=function(){S.tour--;showTour()};
+}
+
+/* ================= render / events ================= */
+var timerInt=null,reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function render(){
+  var h;
+  if(S.screen==='intro')h=viewIntro();else if(S.screen==='play')h=viewPlay();else if(S.screen==='result')h=viewResult();else if(S.screen==='smm')h=viewSMM();else h=viewEnd();
+  $('app').innerHTML=h;bind();
+  if(S.screen==='play'){refreshLive();showTour()}
+  if(S.screen==='result')afterResult();
+  startTimer();
+}
+function afterResult(){
+  var x=S.last,ship=Math.max(1,Math.round(x.good/45)),tb='';
+  for(var i=0;i<Math.min(ship,9);i++)tb+='<rect x="'+(570+(i%5)*17)+'" y="'+(416-Math.floor(i/5)*14)+'" width="15" height="12" fill="var(--crate)" stroke="var(--crate2)"/>';
+  if($('truckBoxes'))$('truckBoxes').innerHTML=tb;
+  if($('tgtTxt'))$('tgtTxt').textContent=f0(S.lastTarget);
+  if($('crates'))$('crates').innerHTML=cratesHTML(x.mat);
+  var g=$('gear1');if(g)g.style.setProperty('--gspd','4s');
+  var fa=$('fa');if(fa){void fa.offsetWidth;fa.style.width=Math.round(clamp(x.ach,0,1.2)/1.2*100)+'%'}
+  document.querySelectorAll('[data-w]').forEach(function(el){void el.offsetWidth;el.style.width=el.getAttribute('data-w')});
+  document.querySelectorAll('[data-count]').forEach(function(el){
+    var to=Number(el.getAttribute('data-count')),kind=el.getAttribute('data-kind');
+    function fmt(v){return kind==='pct'?(v*100).toFixed(1)+'%':kind==='dec'?(Math.round(v*10)/10).toFixed(1):Math.round(v).toLocaleString()}
+    if(reduce){el.textContent=fmt(to);return}
+    var t0=performance.now();(function tick(t){var k=Math.min(1,(t-t0)/900),e=1-Math.pow(1-k,3);el.textContent=fmt(to*e);if(k<1)requestAnimationFrame(tick)})(t0);
+  });
+  var b=S.stateBefore,n=Math.min(63,Math.round(b.N)),out=Math.min(x.left+S.lastLay,n),crew=$('crew');
+  if(crew)crew.innerHTML=crewHTML(n,b.en,out,S.lastRec);
+}
+function startTimer(){
+  clearInterval(timerInt);if(!$('timer'))return;
+  timerInt=setInterval(function(){var e=$('timer');if(!e){clearInterval(timerInt);return}
+    var left=Math.max(0,300-Math.floor((Date.now()-S.roundStart)/1000));
+    e.textContent=('0'+Math.floor(left/60)).slice(-2)+':'+('0'+left%60).slice(-2)},500);
+}
+function snap(k,v){var c=CTL[k];v=Number(v);if(isNaN(v))v=c.def;v=Math.round(v/c.step)*c.step;return clamp(v,c.min,c.max)}
+function touch(k){S.errors=[];if(CTL[k].who==='A')S.confA=false;else S.confB=false}
+function onChange(k,raw){
+  var v=snap(k,raw);S.dec[k]=v;$('r-'+k).value=v;$('n-'+k).value=v;touch(k);
+  logEv('change',{field:k,value:v});refreshLive();
+}
+function bind(){
+  if($('introNext'))$('introNext').onclick=function(){S.ip++;render()};
+  if($('introPrev'))$('introPrev').onclick=function(){S.ip--;render()};
+  if($('start'))$('start').onclick=beginRound;
+  if($('gloss'))$('gloss').onclick=openGloss;
+  if($('help'))$('help').onclick=function(){S.tour=0;showTour()};
+  if($('cA'))$('cA').onclick=function(){if(S.tFirst==null)S.tFirst=Date.now()-S.roundStart;S.confA=!S.confA;S.errors=[];logEv('confirm',{who:'A',on:S.confA,dec:Object.assign({},S.dec)});refreshLive()};
+  if($('cB'))$('cB').onclick=function(){if(S.tFirst==null)S.tFirst=Date.now()-S.roundStart;S.confB=!S.confB;S.errors=[];logEv('confirm',{who:'B',on:S.confB,dec:Object.assign({},S.dec)});refreshLive()};
+  if($('submit'))$('submit').onclick=submit;
+  if($('next'))$('next').onclick=nextRound;
+  bindSMM();
+  if($('smmDone'))$('smmDone').onclick=function(){logEv('smm_done');S.idx++;beginRound()};
+  if($('again'))$('again').onclick=function(){init();render()};
+  if($('copy'))$('copy').onclick=function(){
+    var t=$('logbox');t.select();var ok=function(m){$('copied').textContent=m};
+    try{navigator.clipboard.writeText(t.value).then(function(){ok('已複製')},function(){try{document.execCommand('copy')}catch(e){}ok('已選取，請按 Ctrl+C 複製')})}
+    catch(e){try{document.execCommand('copy')}catch(e2){}ok('已選取，請按 Ctrl+C 複製')}
+  };
+  document.querySelectorAll('input[type=range]').forEach(function(el){el.oninput=function(){onChange(el.getAttribute('data-k'),el.value)}});
+  document.querySelectorAll('input[type=number]').forEach(function(el){
+    el.oninput=function(){var k=el.getAttribute('data-k');if(el.value!==''){var v=snap(k,el.value);S.dec[k]=v;$('r-'+k).value=v;touch(k);refreshLive()}};
+    el.onchange=function(){var k=el.getAttribute('data-k');onChange(k,el.value);logEv('change_typed',{field:k})};
+  });
+}
+function beginRound(){
+  S.screen='play';S.dec=freshDec();S.confA=false;S.confB=false;S.errors=[];S.roundStart=Date.now();S.curViol=0;S.tFirst=null;
+  if(S.idx===0&&!S.tourSeen){S.tour=0;S.tourSeen=true}else S.tour=-1;
+  logEv('round_start',{state:Object.assign({},S.state)});render();
+}
+function submit(){
+  var r=cur(),ev=roundInfo(r.id),msgs=check(S.state,S.dec,ev);
+  if(msgs.length){
+    S.errors=msgs;if(!r.practice)S.violations++;S.curViol++;S.confA=false;S.confB=false;
+    logEv('rejected',{reasons:msgs,dec:Object.assign({},S.dec)});refreshLive();
+    var bn=$('banner');if(bn&&!reduce){bn.classList.remove('shake');void bn.offsetWidth;bn.classList.add('shake')}return;
+  }
+  var res=advance(S.state,S.dec,ev);
+  var tSub=Date.now()-S.roundStart;logEv('submitted',{t_first_confirm:S.tFirst,t_submit:tSub,dec:Object.assign({},S.dec),out:res.out,state_before:Object.assign({},S.state)});
+  if(!r.practice)S.history.push({id:r.id,good:res.out.good,ach:res.out.ach,unit:res.out.unit,revenue:res.out.revenue,profit:res.out.profit,passed:res.out.passed,en:res.out.en,tr:res.out.tr,N:res.out.N,viol:S.curViol,t1:S.tFirst,t2:tSub,dec:Object.assign({},S.dec)});
+  S.stateBefore=Object.assign({},S.state);S.lastTarget=ev.target;S.lastRec=S.dec.rec;S.lastLay=S.dec.lay;
+  S.last=res.out;S.lastId=r.id+(r.practice?'（練習）':'');S.state=res.next;S.screen='result';render();
+}
+function nextRound(){
+  var r=cur();
+  if(r.id==='P2'){S.state=Object.assign({},START);S.last=null}
+  S.idx++;
+  if(S.idx>=SEQ.length){S.screen='end';logEv('game_end');render();return}
+  if(cur().smm){S.screen='smm';S.smm=newSmm();logEv('smm_start',{team_code:S.teamCode});render();return}
+  beginRound();
+}
+
+/* ================= 雙電腦連線（房間代碼配對 + WebRTC 直連）================= */
+var NET=null,REMOTE=false,_pair={mode:'',step:'',offer:'',answer:'',msg:'',err:''},_pc=null,_dc=null;
+var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];
+function b64e(u8){var s='';for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function b64d(t){t=t.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
+async function pipe(u8,Ctor){var st=new Blob([u8]).stream().pipeThrough(new Ctor('deflate-raw'));return new Uint8Array(await new Response(st).arrayBuffer())}
+async function encCode(obj){var raw=new TextEncoder().encode(JSON.stringify(obj));
+  if(typeof CompressionStream!=='undefined')return 'Z'+b64e(await pipe(raw,CompressionStream));return 'R'+b64e(raw)}
+async function decCode(t){t=t.trim();var k=t.charAt(0),u=b64d(t.slice(1));
+  if(k==='Z'){if(typeof DecompressionStream==='undefined')throw new Error('nodecomp');u=await pipe(u,DecompressionStream)}
+  return JSON.parse(new TextDecoder().decode(u))}
+function gathered(pc){return new Promise(function(res){if(pc.iceGatheringState==='complete')return res();
+  var t=setTimeout(res,6000);pc.addEventListener('icegatheringstatechange',function(){if(pc.iceGatheringState==='complete'){clearTimeout(t);res()}})})}
+function newPc(){
+  _pc=new RTCPeerConnection({iceServers:ICE});_pair.ice='';
+  _pc.oniceconnectionstatechange=function(){_pair.ice=_pc.iceConnectionState;if(S.screen==='pair')render()};
+  _pc.onconnectionstatechange=function(){var s=_pc.connectionState;if(NET&&(s==='disconnected'||s==='failed'||s==='closed'))netBar('連線中斷：請確認雙方網路。若已斷線，請兩邊重新整理後重新配對（目前進度無法接續）。',true)};
+  return _pc}
+function sendMsg(o){if(_dc&&_dc.readyState==='open')try{_dc.send(JSON.stringify(o))}catch(e){}}
+function netBar(t,bad){var b=document.getElementById('netbar');if(!b){b=document.createElement('div');b.id='netbar';b.setAttribute('role','status');document.body.appendChild(b)}b.textContent=t;b.className=bad?'bad':'';b.style.display=t?'block':'none'}
+function setupChannel(ch,role){
+  _dc=ch;
+  ch.onopen=function(){NET={role:role};
+    netBar('已連線：你是成員 '+role+'（'+(role==='A'?'營運':'人資')+'）');
+    if(role==='A')sendMsg({t:'hello',code:S.teamCode});
+    S.screen='intro';S.ip=0;render()};
+  ch.onclose=function(){if(NET)netBar('連線中斷：請兩邊重新整理後重新配對（目前進度無法接續）。',true)};
+  ch.onmessage=function(ev){var m;try{m=JSON.parse(ev.data)}catch(e){return}onNetMsg(m)}}
+async function hostCreate(){
+  _pair.err='';_pair.msg='正在產生邀請碼…（最多約 6 秒）';render();
+  try{var pc=newPc();setupChannel(pc.createDataChannel('g'),'A');
+    await pc.setLocalDescription(await pc.createOffer());await gathered(pc);
+    _pair.offer=await encCode({d:pc.localDescription});_pair.msg='';_pair.step='hostWait'}
+  catch(e){_pair.err='無法建立連線：'+(e&&e.message||e)}
+  render()}
+function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+'、srflx '+c('srflx')+'、relay '+c('relay')}
+async function hostAccept(txt){
+  _pair.err='';
+  if(_pc&&_pc.remoteDescription){_pair.msg='已經送出回覆碼了，請不要重複按「連線」。連線狀態會顯示在下方；若超過 20 秒沒連上，請兩邊重新整理後重做一次。';render();return}
+  try{var a=await decCode(txt);await _pc.setRemoteDescription(a.d);_pair.msg='已送出回覆碼，連線中…若 20 秒內沒有連上，可能是網路阻擋，請見下方說明。';render()}
+  catch(e){_pair.err='回覆碼無法讀取：'+(e&&e.message||e)+'。請確認完整複製（含最前面的英文字母），或兩邊重新整理後重做。';render()}}
+async function guestJoin(txt){
+  _pair.err='';_pair.msg='正在產生回覆碼…（最多約 6 秒）';render();
+  try{var o=await decCode(txt);var pc=newPc();pc.ondatachannel=function(e){setupChannel(e.channel,'B')};
+    await pc.setRemoteDescription(o.d);await pc.setLocalDescription(await pc.createAnswer());await gathered(pc);
+    _pair.answer=await encCode({d:pc.localDescription});_pair.msg='';_pair.step='guestWait'}
+  catch(e){_pair.err='邀請碼無法讀取，請確認完整複製（含最前面的英文字母）。'}
+  render()}
+/* ---------- 房間代碼配對（訊號伺服器只轉送連線資訊，遊戲資料走 WebRTC 直連）---------- */
+var SIG=(function(){try{var q=new URLSearchParams(location.search).get('sig');if(q)return q}catch(e){}return 'wss://0.peerjs.com/peerjs?key=peerjs'})();
+var _ws=null,_hb=null,_peer='',_room='',_cands=[];
+function rid(n){var s='';for(var i=0;i<n;i++)s+=Math.floor(Math.random()*10);return s}
+function fmtRoom(c){return c.slice(0,3)+' '+c.slice(3)}
+function wsClose(){clearInterval(_hb);try{if(_ws){_ws.onclose=null;_ws.close()}}catch(e){};_ws=null}
+function wsOpen(id,onopen,onmsg,onfail){
+  wsClose();var url=SIG+(SIG.indexOf('?')<0?'?':'&')+'id='+encodeURIComponent(id)+'&token='+rid(10);
+  try{_ws=new WebSocket(url)}catch(e){onfail('無法連到配對伺服器');return}
+  var ws=_ws,opened=false;
+  ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.type==='OPEN'){opened=true;_hb=setInterval(function(){try{ws.send(JSON.stringify({type:'HEARTBEAT'}))}catch(e){}},5000);onopen()}
+    else onmsg(m)};
+  ws.onerror=function(){if(!opened)onfail('無法連到配對伺服器（可能是學校或公司網路擋住，或伺服器暫時不可用）')};
+  ws.onclose=function(){if(!opened)onfail('無法連到配對伺服器')}}
+function wsSend(dst,type,payload){try{_ws.send(JSON.stringify({type:type,dst:dst,payload:payload}))}catch(e){}}
+function roomPc(){var pc=newPc();_cands=[];
+  pc.onicecandidate=function(e){if(e.candidate&&_peer)wsSend(_peer,'CANDIDATE',{candidate:e.candidate.toJSON?e.candidate.toJSON():e.candidate,type:'data',connectionId:_room})};
+  var prev=pc.onconnectionstatechange;
+  pc.onconnectionstatechange=function(){prev();if(pc.connectionState==='connected')setTimeout(wsClose,1500)};
+  return pc}
+function addCand(c){if(_pc&&_pc.remoteDescription)_pc.addIceCandidate(c).catch(function(){});else _cands.push(c)}
+function flushCands(){var a=_cands;_cands=[];a.forEach(function(c){_pc.addIceCandidate(c).catch(function(){})})}
+function roomHost(tries){
+  tries=tries||0;_pair.err='';_pair.msg='正在建立房間…';render();
+  var code=rid(6);_room='oo'+code;_peer='';
+  wsOpen('ooroom-'+code,function(){_pair.code=code;_pair.step='roomWait';_pair.msg='';render()},
+    function(m){
+      if(m.type==='ID-TAKEN'){if(tries<5)roomHost(tries+1);else{_pair.err='無法建立房間，請稍後重試';render()}return}
+      if(m.type==='OFFER'){
+        if(_peer&&_peer!==m.src)return;_peer=m.src;
+        var pc=roomPc();pc.ondatachannel=function(e){setupChannel(e.channel,'A')};
+        pc.setRemoteDescription({type:'offer',sdp:m.payload.sdp.sdp||m.payload.sdp}).then(function(){flushCands();return pc.createAnswer()})
+          .then(function(a){return pc.setLocalDescription(a)})
+          .then(function(){wsSend(_peer,'ANSWER',{sdp:pc.localDescription.toJSON?pc.localDescription.toJSON():pc.localDescription,type:'data',connectionId:_room});_pair.msg='成員 B 已加入，連線中…';render()})
+          .catch(function(e){_pair.err='連線建立失敗：'+(e&&e.message||e);render()})}
+      else if(m.type==='CANDIDATE'&&m.src===_peer&&m.payload&&m.payload.candidate)addCand(m.payload.candidate)},
+    function(t){_pair.err=t;_pair.msg='';render()})}
+function roomJoin(code){
+  code=(code||'').replace(/\D/g,'');
+  if(code.length!==6){_pair.err='請輸入 6 位數字的房間代碼。';render();return}
+  _pair.err='';_pair.msg='正在尋找房間…';render();
+  _room='oo'+code;_peer='ooroom-'+code;var done=false;
+  wsOpen('oog-'+rid(8)+Date.now().toString(36),function(){
+      var pc=roomPc();setupChannel(pc.createDataChannel('g'),'B');
+      pc.createOffer().then(function(o){return pc.setLocalDescription(o)}).then(function(){
+        wsSend(_peer,'OFFER',{sdp:pc.localDescription.toJSON?pc.localDescription.toJSON():pc.localDescription,type:'data',connectionId:_room,label:'g',reliable:true,serialization:'raw'});
+        _pair.step='roomJoined';_pair.msg='已送出加入要求，等待成員 A 回應…';render();
+        setTimeout(function(){if(!NET&&!done&&_pc&&!_pc.remoteDescription){_pair.err='找不到這個房間或 A 沒有回應。請確認代碼、並確認 A 停在「等待成員 B 加入」畫面。';_pair.msg='';wsClose();render()}},15000)})
+        .catch(function(e){_pair.err='連線建立失敗：'+(e&&e.message||e);render()})},
+    function(m){
+      if(m.type==='ANSWER'&&m.src===_peer){done=true;_pc.setRemoteDescription({type:'answer',sdp:m.payload.sdp.sdp||m.payload.sdp}).then(function(){flushCands();_pair.msg='已找到房間，連線中…';render()}).catch(function(e){_pair.err='連線建立失敗：'+(e&&e.message||e);render()})}
+      else if(m.type==='CANDIDATE'&&m.src===_peer&&m.payload&&m.payload.candidate)addCand(m.payload.candidate)
+      else if(m.type==='EXPIRE'){_pair.err='找不到這個房間，請確認代碼，並確認 A 已建立房間。';_pair.msg='';wsClose();render()}},
+    function(t){_pair.err=t;_pair.msg='';render()})}
+function viewPair(){
+  var p=_pair,h='<div class="hud plain">'+topbar(false)+'<div class="screen"><div class="sheet"><h1>連線方式</h1>';
+  if(!p.mode){
+    h+='<p>請決定這一局怎麼玩：</p><div class="opts"><button class="opt" id="pRHost"><b>兩台電腦，我是成員 A（營運）</b><br><span class="muted">建立房間，得到 6 位數房間代碼</span></button><button class="opt" id="pRGuest"><b>兩台電腦，我是成員 B（人資）</b><br><span class="muted">輸入 A 的房間代碼</span></button><button class="opt" id="pSolo"><b>兩人共用同一台電腦</b><br><span class="muted">不需要連線</span></button></div><details class="notice"><summary>備用：手動複製貼上配對（房間代碼連不上時）</summary><div class="opts"><button class="opt" id="pHost"><b>手動配對：我是成員 A</b></button><button class="opt" id="pGuest"><b>手動配對：我是成員 B</b></button></div></details></div><p class="notice">兩台電腦模式：每人只看得到自己的「部門情報」，兩邊的拉桿與結果即時同步。配對時會透過公開的配對伺服器交換連線資訊（不含遊戲內容），配對成功後遊戲資料由兩台電腦直連傳送。兩人需要同時保持頁面開啟，中途重新整理會斷線且無法接續。</p>';
+  }else if(p.mode==='rhost'){
+    h+='<h2>成員 A：建立房間</h2>';
+    if(p.step==='roomWait')h+='<p>請把這組<b>房間代碼</b>告訴成員 B：</p><p class="roomcode" style="font-size:44px;font-weight:800;letter-spacing:.12em;margin:8px 0">'+fmtRoom(p.code)+'</p><p class="notice">請停留在此畫面，B 輸入代碼後會自動連線並進入遊戲。</p>';
+  }else if(p.mode==='rguest'){
+    h+='<h2>成員 B：加入房間</h2><p>請輸入成員 A 畫面上的 6 位數房間代碼：</p><input id="rcode" inputmode="numeric" maxlength="7" autocomplete="off" placeholder="例如 583 921" style="font-size:28px;letter-spacing:.1em;width:9em"> <button class="btn" id="rGo"'+(p.step==='roomJoined'?' disabled':'')+'>加入房間</button>';
+  }else if(p.mode==='host'){
+    if(p.step!=='hostWait'){h+='<h2>成員 A：建立房間</h2><p>按下按鈕後會產生一段「邀請碼」。</p><button class="btn" id="hGen"'+(p.msg?' disabled':'')+'>產生邀請碼</button>'}
+    else h+='<h2>成員 A：建立房間</h2><ol class="plain"><li>把下面的<b>邀請碼</b>整段複製，用訊息傳給成員 B。<textarea id="offer" readonly rows="4">'+esc(p.offer)+'</textarea><button class="btn ghost" id="cpOffer">複製邀請碼</button> <span class="notice" id="cpd1"></span></li><li>B 會傳回一段<b>回覆碼</b>，貼在這裡：<textarea id="ans" rows="4" placeholder="貼上成員 B 的回覆碼"></textarea><button class="btn" id="hAcc">連線</button></li></ol>';
+  }else{
+    if(p.step!=='guestWait')h+='<h2>成員 B：加入房間</h2><p>請貼上成員 A 傳給你的<b>邀請碼</b>：</p><textarea id="inv" rows="4" placeholder="貼上成員 A 的邀請碼"></textarea><button class="btn" id="gGo"'+(p.msg?' disabled':'')+'>產生回覆碼</button>';
+    else h+='<h2>成員 B：加入房間</h2><p>請把下面的<b>回覆碼</b>整段複製，傳給成員 A，並等 A 按下「連線」。</p><textarea id="answer" readonly rows="4">'+esc(p.answer)+'</textarea><button class="btn ghost" id="cpAns">複製回覆碼</button> <span class="notice" id="cpd2"></span><p class="notice">連上後畫面會自動進入遊戲。</p>';
+  }
+  if(p.msg)h+='<p class="notice">'+p.msg+'</p>';
+  if(_pc&&(p.mode==='host'||p.mode==='guest'||p.mode==='rhost'||p.mode==='rguest'))h+='<p class="notice">連線診斷：ICE='+(p.ice||_pc.iceConnectionState)+'、連線='+_pc.connectionState+'；'+candInfo(_pc)+'</p>';
+  if(p.err)h+='<div class="err" role="alert">'+p.err+'</div>';
+  if(p.mode)h+='<p class="notice">連不上時：①兩人先試試換成同一個 Wi-Fi 或手機熱點；②學校網路可能擋住連線，可改用上面的「手動複製貼上配對」或「兩人共用同一台電腦」。</p><div class="navrow"><button class="btn ghost" id="pBack">返回</button><span></span></div>';
+  return h+'</div></div></div>'}
+function copyFrom(id,msgId){var t=document.getElementById(id);t.select();var ok=function(m){document.getElementById(msgId).textContent=m};
+  try{navigator.clipboard.writeText(t.value).then(function(){ok('已複製')},function(){try{document.execCommand('copy')}catch(e){}ok('已選取，請按 Ctrl+C 複製')})}catch(e){try{document.execCommand('copy')}catch(e2){}ok('已選取，請按 Ctrl+C 複製')}}
+function bindPair(){
+  var q=function(i){return document.getElementById(i)};
+  if(q('pRHost'))q('pRHost').onclick=function(){_pair.mode='rhost';_pair.step='';roomHost(0)};
+  if(q('pRGuest'))q('pRGuest').onclick=function(){_pair.mode='rguest';_pair.step='';render()};
+  if(q('rGo'))q('rGo').onclick=function(){roomJoin(q('rcode').value)};
+  if(q('rcode'))q('rcode').onkeydown=function(e){if(e.key==='Enter')roomJoin(q('rcode').value)};
+  if(q('pHost'))q('pHost').onclick=function(){_pair.mode='host';_pair.step='';render()};
+  if(q('pGuest'))q('pGuest').onclick=function(){_pair.mode='guest';_pair.step='';render()};
+  if(q('pSolo'))q('pSolo').onclick=function(){NET=null;S.screen='intro';render()};
+  if(q('pBack'))q('pBack').onclick=function(){wsClose();_peer='';try{if(_pc)_pc.close()}catch(e){};_pc=null;_dc=null;_pair={mode:'',step:'',offer:'',answer:'',msg:'',err:''};render()};
+  if(q('hGen'))q('hGen').onclick=hostCreate;
+  if(q('hAcc'))q('hAcc').onclick=function(){hostAccept(q('ans').value)};
+  if(q('gGo'))q('gGo').onclick=function(){guestJoin(q('inv').value)};
+  if(q('cpOffer'))q('cpOffer').onclick=function(){copyFrom('offer','cpd1')};
+  if(q('cpAns'))q('cpAns').onclick=function(){copyFrom('answer','cpd2')};
+}
+/* ---------- 訊息同步 ---------- */
+function onNetMsg(m){
+  REMOTE=true;
+  try{
+    if(m.t==='hello'){S.teamCode=m.code;render()}
+    else if(m.t==='ip'){if(S.screen==='intro'){S.ip=m.ip;NET.sentIp=m.ip;render()}}
+    else if(m.t==='start'){if(S.screen==='intro')beginRound()}
+    else if(m.t==='dec'){if(S.screen==='play'&&S.idx===m.idx&&CTL[m.k]){S.dec[m.k]=snap(m.k,m.v);var r=$('r-'+m.k),n=$('n-'+m.k);if(r)r.value=S.dec[m.k];if(n)n.value=S.dec[m.k];S.errors=[];if(CTL[m.k].who==='A')S.confA=false;else S.confB=false;refreshLive()}}
+    else if(m.t==='conf'){if(S.screen==='play'&&S.idx===m.idx){if(m.who==='A')S.confA=m.on;else S.confB=m.on;S.errors=[];refreshLive()}}
+    else if(m.t==='submit'){if(S.screen==='play'&&S.idx===m.idx)submit()}
+    else if(m.t==='next'){if(S.screen==='result'&&S.idx===m.idx)nextRound()}
+    else if(m.t==='smm'){if(S.screen==='smm'&&S.smm){S.smm['done'+m.who]=true;smmCheck();if(S.screen==='smm')render()}}
+  }finally{REMOTE=false}}
+function smmCheck(){var m=S.smm;if(m&&m.doneA&&m.doneB){logEv('smm_done');S.idx++;beginRound()}}
+/* ---------- 包裝既有函式 ---------- */
+var _logEv=logEv;logEv=function(type,data){_logEv(type,data);
+  if(!NET||REMOTE)return;
+  if(type==='change')sendMsg({t:'dec',idx:S.idx,k:data.field,v:data.value});
+  else if(type==='confirm')sendMsg({t:'conf',idx:S.idx,who:data.who,on:data.on})};
+var _submit=submit;submit=function(){if(NET&&!REMOTE)sendMsg({t:'submit',idx:S.idx});_submit()};
+var _next=nextRound;nextRound=function(){if(NET&&!REMOTE)sendMsg({t:'next',idx:S.idx});_next()};
+var _begin=beginRound;beginRound=function(){if(NET&&!REMOTE&&S.screen==='intro')sendMsg({t:'start'});_begin()};
+var _viewIntro=viewIntro;
+var _render=render;render=function(){
+  if(S.screen==='pair'){document.getElementById('app').innerHTML=viewPair();bindPair();return}
+  _render();
+  if(NET&&S.screen==='intro'&&NET.sentIp!==S.ip){NET.sentIp=S.ip;if(!REMOTE)sendMsg({t:'ip',ip:S.ip})}
+  if(NET&&S.screen==='play')netLock();
+  if(NET&&S.screen==='smm')bindNetSmm()};
+function netLock(){
+  if(!NET)return;var other=NET.role==='A'?'B':'A',ord=other==='A'?ORDER_A:ORDER_B;
+  ord.forEach(function(k){var r=$('r-'+k),n=$('n-'+k);if(r)r.disabled=true;if(n)n.disabled=true});
+  var b=$('c'+other);if(b){b.disabled=true;b.title='這是成員 '+other+' 的確認鍵'}}
+var _rl=refreshLive;refreshLive=function(){_rl();netLock()};
+var _intelBox=intelBox;intelBox=function(w){
+  if(!NET)return _intelBox(w);
+  var id=cur().id,it=INTEL[id];if(!it)return '';
+  if(w===NET.role)return '<div class="intel mine"><div class="ihead">🔒 你的部門情報（只有你看得到）</div><div class="itxt">'+it[w]+'</div><div class="ifoot">請口頭告訴搭檔，再一起決定。</div></div>';
+  return '<div class="intel"><div class="ihead">🔒 成員 '+w+' 的部門情報<small>只有對方看得到</small></div><div class="itxt muted">想知道內容，請詢問對方。</div></div>'};
+var _viewSMM=viewSMM;viewSMM=function(){
+  if(!NET)return _viewSMM();
+  var m=S.smm,me=NET.role,mine=m['done'+me],o=me==='A'?'B':'A';
+  return '<div class="hud plain">'+topbar(false)+'<div class="screen"><div class="sheet"><h2>T2　請完成問卷</h2><p>遊戲暫停。請<b>各自在自己的電腦上</b>開啟問卷，同時作答。作答期間不要討論，也不要看對方的螢幕。</p>'+
+  '<div class="tcode"><span>團隊代碼</span><b class="num">'+S.teamCode+'</b></div>'+
+  '<ol class="plain"><li>開啟問卷頁面：<a href="'+QURL+'" target="_blank" rel="noopener noreferrer">'+QURL+'</a></li><li>輸入上面的團隊代碼，並選擇自己的角色（你是成員 '+me+'）。</li><li>完成 81 題（約 15–20 分鐘），把作答紀錄交給研究者。</li><li>完成後，回到這個畫面按下「我完成了」。兩人都按了，遊戲才會繼續。</li></ol>'+
+  '<div class="chks"><span class="muted">狀態：</span><span>成員 '+me+'（你）：'+(mine?'已完成':'作答中')+'</span><span>成員 '+o+'：'+(m['done'+o]?'已完成':'作答中')+'</span></div>'+
+  '<div><button class="btn" id="netSmmDone"'+(mine?' disabled':'')+'>我完成了</button></div></div></div></div>'};
+function bindNetSmm(){var b=$('netSmmDone');if(b)b.onclick=function(){S.smm['done'+NET.role]=true;logEv('smm_check',{who:NET.role,done:true});sendMsg({t:'smm',who:NET.role});smmCheck();if(S.screen==='smm')render()}}
+var _init2=init;init=function(){_init2();S.screen=NET?'intro':'pair'};
+S.screen='pair';
+render();
+</script>

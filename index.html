@@ -707,7 +707,10 @@ function nextRound(){
 
 /* ================= 雙電腦連線（房間代碼配對 + WebRTC 直連）================= */
 var NET=null,REMOTE=false,_pair={mode:'',step:'',offer:'',answer:'',msg:'',err:''},_pc=null,_dc=null;
-var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];
+var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},
+  /* 公用免費中繼（TURN）備援：只轉送加密後的連線流量。這是第三方服務，可用性無保證；正式實驗前請換成自己的 TURN 或移除 */
+  {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp','turns:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+var _rcount=0;
 function b64e(u8){var s='';for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function b64d(t){t=t.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
 async function pipe(u8,Ctor){var st=new Blob([u8]).stream().pipeThrough(new Ctor('deflate-raw'));return new Uint8Array(await new Response(st).arrayBuffer())}
@@ -740,7 +743,7 @@ async function hostCreate(){
     _pair.offer=await encCode({d:pc.localDescription});_pair.msg='';_pair.step='hostWait'}
   catch(e){_pair.err='無法建立連線：'+(e&&e.message||e)}
   render()}
-function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+'、srflx '+c('srflx')+'、relay '+c('relay')}
+function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+(/ \S+\.local /.test(d)?'(.local)':'')+'、srflx '+c('srflx')+'、relay '+c('relay')+'；收到對方候選 '+_rcount}
 async function hostAccept(txt){
   _pair.err='';
   if(_pc&&_pc.remoteDescription){_pair.msg='已經送出回覆碼了，請不要重複按「連線」。連線狀態會顯示在下方；若超過 20 秒沒連上，請兩邊重新整理後重做一次。';render();return}
@@ -769,12 +772,12 @@ function wsOpen(id,onopen,onmsg,onfail){
   ws.onerror=function(){if(!opened)onfail('無法連到配對伺服器（可能是學校或公司網路擋住，或伺服器暫時不可用）')};
   ws.onclose=function(){if(!opened)onfail('無法連到配對伺服器')}}
 function wsSend(dst,type,payload){try{_ws.send(JSON.stringify({type:type,dst:dst,payload:payload}))}catch(e){}}
-function roomPc(){var pc=newPc();_cands=[];
+function roomPc(){var pc=newPc();_cands=[];_rcount=0;
   pc.onicecandidate=function(e){if(e.candidate&&_peer)wsSend(_peer,'CANDIDATE',{candidate:e.candidate.toJSON?e.candidate.toJSON():e.candidate,type:'data',connectionId:_room})};
   var prev=pc.onconnectionstatechange;
   pc.onconnectionstatechange=function(){prev();if(pc.connectionState==='connected')setTimeout(wsClose,1500)};
   return pc}
-function addCand(c){if(_pc&&_pc.remoteDescription)_pc.addIceCandidate(c).catch(function(){});else _cands.push(c)}
+function addCand(c){_rcount++;if(_pc&&_pc.remoteDescription)_pc.addIceCandidate(c).catch(function(){});else _cands.push(c)}
 function flushCands(){var a=_cands;_cands=[];a.forEach(function(c){_pc.addIceCandidate(c).catch(function(){})})}
 function roomHost(tries){
   tries=tries||0;_pair.err='';_pair.msg='正在建立房間…';render();

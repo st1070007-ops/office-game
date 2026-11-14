@@ -708,8 +708,14 @@ function nextRound(){
 /* ================= 雙電腦連線（房間代碼配對 + WebRTC 直連）================= */
 var NET=null,REMOTE=false,_pair={mode:'',step:'',offer:'',answer:'',msg:'',err:''},_pc=null,_dc=null;
 var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},
-  /* 公用免費中繼（TURN）備援：只轉送加密後的連線流量。這是第三方服務，可用性無保證；正式實驗前請換成自己的 TURN 或移除 */
-  {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp','turns:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+  ];
+/* 中繼（TURN）：向 Metered 取得暫時憑證（第三方服務，只轉送加密後的連線流量；正式實驗前請在其後台重新產生 API Key）*/
+var TURN_URL='https://smmgame.metered.live/api/v1/turn/credentials?apiKey=ME35NzOANTSYo2KVHTjlfBB96AbR1UZj6h98MgL6_sBXTfi0',_turnP=null,_turnN=0;
+function loadTurn(){if(_turnP)return _turnP;
+  _turnP=new Promise(function(res){var done=false,fin=function(){if(!done){done=true;res()}};setTimeout(fin,4000);
+    try{fetch(TURN_URL).then(function(r){return r.json()}).then(function(a){if(Array.isArray(a)&&a.length){ICE=ICE.concat(a);_turnN=a.length}fin()}).catch(fin)}catch(e){fin()}});
+  return _turnP}
+try{loadTurn()}catch(e){}
 var _rcount=0;
 function b64e(u8){var s='';for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function b64d(t){t=t.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
@@ -743,7 +749,7 @@ async function hostCreate(){
     _pair.offer=await encCode({d:pc.localDescription});_pair.msg='';_pair.step='hostWait'}
   catch(e){_pair.err='無法建立連線：'+(e&&e.message||e)}
   render()}
-function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+(/ \S+\.local /.test(d)?'(.local)':'')+'、srflx '+c('srflx')+'、relay '+c('relay')+'；收到對方候選 '+_rcount}
+function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+(/ \S+\.local /.test(d)?'(.local)':'')+'、srflx '+c('srflx')+'、relay '+c('relay')+'；收到對方候選 '+_rcount+'；中繼設定 '+(_turnN?'已載入':'未載入')}
 async function hostAccept(txt){
   _pair.err='';
   if(_pc&&_pc.remoteDescription){_pair.msg='已經送出回覆碼了，請不要重複按「連線」。連線狀態會顯示在下方；若超過 20 秒沒連上，請兩邊重新整理後重做一次。';render();return}
@@ -781,6 +787,8 @@ function addCand(c){_rcount++;if(_pc&&_pc.remoteDescription)_pc.addIceCandidate(
 function flushCands(){var a=_cands;_cands=[];a.forEach(function(c){_pc.addIceCandidate(c).catch(function(){})})}
 function roomHost(tries){
   tries=tries||0;_pair.err='';_pair.msg='正在建立房間…';render();
+  loadTurn().then(function(){roomHost2(tries)})}
+function roomHost2(tries){
   var code=rid(6);_room='oo'+code;_peer='';
   wsOpen('ooroom-'+code,function(){_pair.code=code;_pair.step='roomWait';_pair.msg='';render()},
     function(m){
@@ -798,6 +806,8 @@ function roomJoin(code){
   code=(code||'').replace(/\D/g,'');
   if(code.length!==6){_pair.err='請輸入 6 位數字的房間代碼。';render();return}
   _pair.err='';_pair.msg='正在尋找房間…';render();
+  loadTurn().then(function(){roomJoin2(code)})}
+function roomJoin2(code){
   _room='oo'+code;_peer='ooroom-'+code;var done=false;
   wsOpen('oog-'+rid(8)+Date.now().toString(36),function(){
       var pc=roomPc();setupChannel(pc.createDataChannel('g'),'B');

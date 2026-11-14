@@ -712,11 +712,11 @@ var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3
 /* 中繼（TURN）：向 Metered 取得暫時憑證（第三方服務，只轉送加密後的連線流量；正式實驗前請在其後台重新產生 API Key）*/
 var TURN_URL='https://smmgame.metered.live/api/v1/turn/credentials?apiKey=a6ac656a6ee36b66f27e888c3f07a1de79b4',_turnP=null,_turnN=0,_turnE='';
 function loadTurn(){if(_turnP)return _turnP;
-  _turnP=new Promise(function(res){var done=false,fin=function(){if(!done){done=true;res()}};setTimeout(fin,4000);
+  _turnP=new Promise(function(res){var done=false,fin=function(){if(!done){done=true;res()}};setTimeout(function(){if(!done&&!_turnN&&!_turnE)_turnE='逾時 4 秒';fin()},4000);
     try{fetch(TURN_URL).then(function(r){return r.json()}).then(function(a){if(Array.isArray(a)&&a.length){ICE=ICE.concat(a);_turnN=a.length}else _turnE=(a&&a.error)||'格式錯誤';fin()}).catch(function(e){_turnE=(e&&e.message)||'連不上';fin()})}catch(e){fin()}});
   return _turnP}
 try{loadTurn()}catch(e){}
-var _rcount=0;
+var _rcount=0,NETV='v22b';
 function b64e(u8){var s='';for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function b64d(t){t=t.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
 async function pipe(u8,Ctor){var st=new Blob([u8]).stream().pipeThrough(new Ctor('deflate-raw'));return new Uint8Array(await new Response(st).arrayBuffer())}
@@ -840,6 +840,7 @@ function viewPair(){
   if(p.msg)h+='<p class="notice">'+p.msg+'</p>';
   if(_pc&&(p.mode==='host'||p.mode==='guest'||p.mode==='rhost'||p.mode==='rguest'))h+='<p class="notice">連線診斷：ICE='+(p.ice||_pc.iceConnectionState)+'、連線='+_pc.connectionState+'；'+candInfo(_pc)+'</p>';
   if(p.err)h+='<div class="err" role="alert">'+p.err+'</div>';
+  h+='<p class="notice" style="opacity:.6">程式版本 '+NETV+'</p>';
   if(p.mode)h+='<p class="notice">連不上時：①兩人先試試換成同一個 Wi-Fi 或手機熱點；②學校網路可能擋住連線，可改用上面的「手動複製貼上配對」或「兩人共用同一台電腦」。</p><div class="navrow"><button class="btn ghost" id="pBack">返回</button><span></span></div>';
   return h+'</div></div></div>'}
 function copyFrom(id,msgId){var t=document.getElementById(id);t.select();var ok=function(m){document.getElementById(msgId).textContent=m};

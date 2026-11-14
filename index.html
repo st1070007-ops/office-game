@@ -719,7 +719,8 @@ async function decCode(t){t=t.trim();var k=t.charAt(0),u=b64d(t.slice(1));
 function gathered(pc){return new Promise(function(res){if(pc.iceGatheringState==='complete')return res();
   var t=setTimeout(res,6000);pc.addEventListener('icegatheringstatechange',function(){if(pc.iceGatheringState==='complete'){clearTimeout(t);res()}})})}
 function newPc(){
-  _pc=new RTCPeerConnection({iceServers:ICE});
+  _pc=new RTCPeerConnection({iceServers:ICE});_pair.ice='';
+  _pc.oniceconnectionstatechange=function(){_pair.ice=_pc.iceConnectionState;if(S.screen==='pair')render()};
   _pc.onconnectionstatechange=function(){var s=_pc.connectionState;if(NET&&(s==='disconnected'||s==='failed'||s==='closed'))netBar('連線中斷：請確認雙方網路。若已斷線，請兩邊重新整理後重新配對（目前進度無法接續）。',true)};
   return _pc}
 function sendMsg(o){if(_dc&&_dc.readyState==='open')try{_dc.send(JSON.stringify(o))}catch(e){}}
@@ -739,10 +740,12 @@ async function hostCreate(){
     _pair.offer=await encCode({d:pc.localDescription});_pair.msg='';_pair.step='hostWait'}
   catch(e){_pair.err='無法建立連線：'+(e&&e.message||e)}
   render()}
+function candInfo(pc){var d=(pc.localDescription&&pc.localDescription.sdp)||'',c=function(t){return (d.match(new RegExp(' typ '+t,'g'))||[]).length};return '本機候選：host '+c('host')+'、srflx '+c('srflx')+'、relay '+c('relay')}
 async function hostAccept(txt){
   _pair.err='';
+  if(_pc&&_pc.remoteDescription){_pair.msg='已經送出回覆碼了，請不要重複按「連線」。連線狀態會顯示在下方；若超過 20 秒沒連上，請兩邊重新整理後重做一次。';render();return}
   try{var a=await decCode(txt);await _pc.setRemoteDescription(a.d);_pair.msg='已送出回覆碼，連線中…若 20 秒內沒有連上，可能是網路阻擋，請見下方說明。';render()}
-  catch(e){_pair.err='回覆碼無法讀取，請確認完整複製（含最前面的英文字母）。';render()}}
+  catch(e){_pair.err='回覆碼無法讀取：'+(e&&e.message||e)+'。請確認完整複製（含最前面的英文字母），或兩邊重新整理後重做。';render()}}
 async function guestJoin(txt){
   _pair.err='';_pair.msg='正在產生回覆碼…（最多約 6 秒）';render();
   try{var o=await decCode(txt);var pc=newPc();pc.ondatachannel=function(e){setupChannel(e.channel,'B')};
@@ -762,6 +765,7 @@ function viewPair(){
     else h+='<h2>成員 B：加入房間</h2><p>請把下面的<b>回覆碼</b>整段複製，傳給成員 A，並等 A 按下「連線」。</p><textarea id="answer" readonly rows="4">'+esc(p.answer)+'</textarea><button class="btn ghost" id="cpAns">複製回覆碼</button> <span class="notice" id="cpd2"></span><p class="notice">連上後畫面會自動進入遊戲。</p>';
   }
   if(p.msg)h+='<p class="notice">'+p.msg+'</p>';
+  if(_pc)h+='<p class="notice">連線診斷：ICE='+(p.ice||_pc.iceConnectionState)+'、連線='+_pc.connectionState+'；'+candInfo(_pc)+'</p>';
   if(p.err)h+='<div class="err" role="alert">'+p.err+'</div>';
   if(p.mode)h+='<p class="notice">連不上時：①兩人先試試換成同一個 Wi-Fi 或手機熱點；②學校網路可能擋住直連，可改用「兩人共用同一台電腦」。</p><div class="navrow"><button class="btn ghost" id="pBack">返回</button><span></span></div>';
   return h+'</div></div></div>'}

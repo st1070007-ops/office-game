@@ -177,7 +177,17 @@ textarea{width:100%;min-height:10rem;font-family:var(--font-num);font-size:.75re
 .itxt{font-size:.82rem;line-height:1.45}
 #netbar{position:fixed;left:50%;bottom:.5rem;transform:translateX(-50%);z-index:25;background:var(--ink);color:var(--panel);padding:.3rem .8rem;border-radius:2rem;font-size:.78rem;max-width:92vw;text-align:center;opacity:.92}
 #netbar.bad{background:#b3261e;color:#fff;opacity:1}
-.intel .ihead{font-weight:600;font-size:.82rem;display:flex;gap:.4rem;align-items:center}.intel .ihead small{margin-left:auto;color:var(--muted);font-weight:400;font-size:.7rem}
+.intel .ihead{font-weight:600;font-size:.82rem;display:flex;gap:.4rem;align-items:center}.mail{flex:none;border:1px solid var(--line,#cbd5e1);border-radius:.5rem;overflow:hidden;background:var(--panel,transparent)}
+.mailbtn{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;cursor:pointer;font-size:.82rem}
+.mailbtn:focus-visible{outline:2px solid var(--ink,#0f172a);outline-offset:-2px}
+.mailbtn .mic{font-size:1.1rem}.mailbtn .mtx{display:flex;flex-direction:column;flex:1;min-width:0}.mailbtn .mtx small{color:var(--muted);font-size:.74rem;white-space:normal}
+.mailbtn .mtx b{font-weight:700}
+.mdot{width:.6rem;height:.6rem;border-radius:50%;background:#e11d48;flex:none}
+.mailbody{border-top:1px solid var(--line,#cbd5e1);padding:.5rem .7rem;font-size:.84rem;line-height:1.55}
+.mailbody .mh{display:flex;flex-direction:column;gap:.1rem;font-size:.76rem;color:var(--muted);padding-bottom:.35rem;border-bottom:1px dashed var(--line,#cbd5e1);margin-bottom:.4rem}
+.mailbody .mh span{display:inline-block;min-width:3.2em;margin-right:.4rem;opacity:.8}
+.mailbody p{margin:0}
+.intel .ihead small{margin-left:auto;color:var(--muted);font-weight:400;font-size:.7rem}
 .intel.mine{border-style:solid;border-color:var(--ink)}.intel .ifoot{font-size:.72rem;color:var(--muted)}
 .opts .opt{display:block;width:100%;text-align:left;margin:.4rem 0}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:20}
@@ -716,7 +726,7 @@ function loadTurn(){if(_turnP)return _turnP;
     try{fetch(TURN_URL).then(function(r){return r.json()}).then(function(a){if(Array.isArray(a)&&a.length){ICE=ICE.concat(a);_turnN=a.length}else _turnE=(a&&a.error)||'格式錯誤';fin()}).catch(function(e){_turnE=(e&&e.message)||'連不上';fin()})}catch(e){fin()}});
   return _turnP}
 try{loadTurn()}catch(e){}
-var _rcount=0,NETV='v22b';
+var _rcount=0,NETV='v23';
 function b64e(u8){var s='';for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function b64d(t){t=t.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
 async function pipe(u8,Ctor){var st=new Blob([u8]).stream().pipeThrough(new Ctor('deflate-raw'));return new Uint8Array(await new Response(st).arrayBuffer())}
@@ -824,7 +834,7 @@ function roomJoin2(code){
 function viewPair(){
   var p=_pair,h='<div class="hud plain">'+topbar(false)+'<div class="screen"><div class="sheet"><h1>連線方式</h1>';
   if(!p.mode){
-    h+='<p>請決定這一局怎麼玩：</p><div class="opts"><button class="opt" id="pRHost"><b>兩台電腦，我是成員 A（營運）</b><br><span class="muted">建立房間，得到 6 位數房間代碼</span></button><button class="opt" id="pRGuest"><b>兩台電腦，我是成員 B（人資）</b><br><span class="muted">輸入 A 的房間代碼</span></button><button class="opt" id="pSolo"><b>兩人共用同一台電腦</b><br><span class="muted">不需要連線</span></button></div><details class="notice"><summary>備用：手動複製貼上配對（房間代碼連不上時）</summary><div class="opts"><button class="opt" id="pHost"><b>手動配對：我是成員 A</b></button><button class="opt" id="pGuest"><b>手動配對：我是成員 B</b></button></div></details><p class="notice">兩台電腦模式：每人只看得到自己的「部門情報」，兩邊的拉桿與結果即時同步。配對時會透過公開的配對伺服器交換連線資訊（不含遊戲內容），配對成功後遊戲資料由兩台電腦直連傳送。兩人需要同時保持頁面開啟，中途重新整理會斷線且無法接續。</p>';
+    h+='<p>請決定這一局怎麼玩：</p><div class="opts"><button class="opt" id="pRHost"><b>兩台電腦，我是成員 A（營運）</b><br><span class="muted">建立房間，得到 6 位數房間代碼</span></button><button class="opt" id="pRGuest"><b>兩台電腦，我是成員 B（人資）</b><br><span class="muted">輸入 A 的房間代碼</span></button><button class="opt" id="pSolo"><b>兩人共用同一台電腦</b><br><span class="muted">不需要連線</span></button></div><details class="notice"><summary>備用：手動複製貼上配對（房間代碼連不上時）</summary><div class="opts"><button class="opt" id="pHost"><b>手動配對：我是成員 A</b></button><button class="opt" id="pGuest"><b>手動配對：我是成員 B</b></button></div></details><p class="notice">兩台電腦模式：每人使用自己的電腦，兩邊的拉桿與結果即時同步。配對時會透過公開的配對伺服器交換連線資訊（不含遊戲內容），配對成功後遊戲資料由兩台電腦直連傳送。兩人需要同時保持頁面開啟，中途重新整理會斷線且無法接續。</p>';
   }else if(p.mode==='rhost'){
     h+='<h2>成員 A：建立房間</h2>';
     if(p.step==='roomWait')h+='<p>請把這組<b>房間代碼</b>告訴成員 B：</p><p class="roomcode" style="font-size:44px;font-weight:800;letter-spacing:.12em;margin:8px 0">'+fmtRoom(p.code)+'</p><p class="notice">請停留在此畫面，B 輸入代碼後會自動連線並進入遊戲。</p>';
@@ -895,11 +905,31 @@ function netLock(){
   ord.forEach(function(k){var r=$('r-'+k),n=$('n-'+k);if(r)r.disabled=true;if(n)n.disabled=true});
   var b=$('c'+other);if(b){b.disabled=true;b.title='這是成員 '+other+' 的確認鍵'}}
 var _rl=refreshLive;refreshLive=function(){_rl();netLock()};
+/* ---------- 雙電腦模式：私人資訊以「公司郵件」呈現，不提示對方也有郵件 ---------- */
+var MAILMETA={
+ P1:{A:['行政部','【練習】信箱使用說明','這是公司內部郵件的示範。每回合你的信箱可能會收到各部門寄來的郵件，內容要不要和搭檔分享，由你自己決定。例如：「聽說下一季有同業要來挖角。」'],B:['行政部','【練習】信箱使用說明','這是公司內部郵件的示範。每回合你的信箱可能會收到各部門寄來的郵件，內容要不要和搭檔分享，由你自己決定。例如：「員工私下反映加班太多。」']},
+ R1:{A:['業務部','下一季的競爭動向'],B:['人資部','員工訪談摘要：加班']},
+ R2:{A:['採購部','原料價格預告'],B:['人資部','新進員工的適應期']},
+ R3:{A:['業務部','大型訂單與市場薪資預告'],B:['工務部','生產工時的分配']},
+ R4:{A:['設備廠','機器老化提醒'],B:['人資部','流感季出勤預告']},
+ R5:{A:['倉儲部','倉庫安全提醒'],B:['人資部','員工訪談摘要：福利與薪資']},
+ R6:{A:['生管部','下一季出勤與原料採購'],B:['業務部','年終訂單預告']},
+ R7:{A:['業務部','年終訂單提醒'],B:['財務部','年終結算提醒']},
+ R8:{A:['生管部','最後一季提醒'],B:['人資部','最後一季提醒']}};
+MAILMETA.R1.A[1]='下一季的競爭動向';
+var _mo={};
+function mailOf(id,w){var it=INTEL[id],m=MAILMETA[id];if(!it||!m)return null;var x=m[w];return {from:x[0],subj:x[1],body:x[2]||String(it[w]).replace(/^[^：]{1,12}：/,'')}}
 var _intelBox=intelBox;intelBox=function(w){
   if(!NET)return _intelBox(w);
-  var id=cur().id,it=INTEL[id];if(!it)return '';
-  if(w===NET.role)return '<div class="intel mine"><div class="ihead">🔒 你的部門情報（只有你看得到）</div><div class="itxt">'+it[w]+'</div><div class="ifoot">請口頭告訴搭檔，再一起決定。</div></div>';
-  return '<div class="intel"><div class="ihead">🔒 成員 '+w+' 的部門情報<small>只有對方看得到</small></div><div class="itxt muted">想知道內容，請詢問對方。</div></div>'};
+  if(w!==NET.role)return '';
+  var id=cur().id,m=mailOf(id,w);if(!m)return '';
+  var open=!!_mo[id],read=_mo[id]!==undefined;
+  return '<div class="mail"><button type="button" class="mailbtn" data-id="'+id+'" aria-expanded="'+open+'"><span class="mic">✉</span><span class="mtx"><b>'+(read?'':'新郵件　')+'</b>寄件者：'+m.from+'<small>'+m.subj+'</small></span>'+(read?'':'<span class="mdot" aria-label="未讀"></span>')+'</button><div class="mailbody"'+(open?'':' hidden')+'><div class="mh"><div><span>寄件者</span>'+m.from+'</div><div><span>主旨</span>'+m.subj+'</div></div><p>'+m.body+'</p></div></div>'};
+var _mt={};
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.mailbtn');if(!b||!NET)return;
+  var id=b.getAttribute('data-id'),box=b.parentNode,body=box.querySelector('.mailbody'),opening=body.hidden;
+  if(opening){_mo[id]=true;_mt[id]=Date.now();body.hidden=false;b.setAttribute('aria-expanded','true');var dot=b.querySelector('.mdot');if(dot)dot.remove();var bb=b.querySelector('.mtx b');if(bb)bb.textContent='';logEv('mail_open',{who:NET.role,mail:id})}
+  else{_mo[id]=false;body.hidden=true;b.setAttribute('aria-expanded','false');logEv('intel_peek',{who:NET.role,ms:Date.now()-(_mt[id]||Date.now())})}});
 var _viewSMM=viewSMM;viewSMM=function(){
   if(!NET)return _viewSMM();
   var m=S.smm,me=NET.role,mine=m['done'+me],o=me==='A'?'B':'A';

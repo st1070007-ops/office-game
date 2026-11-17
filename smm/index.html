@@ -109,7 +109,7 @@ function vSetup(){
 }
 function vIntro(){
   return '<div class="sheet"><h2>作答說明</h2><p>遊戲暫停，接下來請<b>各自獨立</b>作答，期間不要和夥伴討論，也不要看對方的螢幕。沒有標準答案，請依照你自己對這間公司運作的理解回答。</p>'+
-  '<ul><li><b>Task MM（36 題）</b>：公司運作的 9 個概念，兩兩評關聯。</li><li><b>Team Interaction MM</b>：①合作方式（15 題，6 個互動概念兩兩評關聯，請依你們剛才實際的合作過程回答）；②職能知識（14 題，知道誰負責什麼、兩邊的決策怎麼互相影響）；③決策預測（12 題，面對同一件事，你自己會怎麼做、你猜搭檔會怎麼做）。</li><li><b>作答依據（2 題）</b>：你主要是依遊戲經驗還是現實想法回答。</li><li><b>規則檢核（4 題）</b>：確認你對規則的理解。</li></ul>'+
+  '<ul><li><b>Task MM（36 題）</b>：公司運作的 9 個概念，兩兩評關聯。</li><li><b>Team Interaction MM</b>：①合作方式（15 題，6 個互動概念兩兩評關聯，請依你們剛才實際的合作過程回答）；②職能知識（14 題，知道誰負責什麼、兩邊的決策怎麼互相影響）；③決策預測（12 題，面對同一件事，你自己會怎麼做、你認為搭檔會怎麼做）。</li><li><b>作答依據（2 題）</b>：你主要是依遊戲經驗還是現實想法回答。</li><li><b>規則檢核（4 題）</b>：確認你對規則的理解。</li></ul>'+
   '<p>評分量尺是 <b>−4 到 +4</b>：負數表示一個增加時另一個傾向減少，0 表示無關，正數表示一個增加時另一個也傾向增加。數字越大，關係越強。</p><p>Task MM 的概念分成<b>決策變數</b>（薪資水準、培訓投入、加班）和<b>結果變數</b>（其餘概念）。題目若同時包含兩種，會固定問「決策變數增加時，結果變數怎麼變」。</p><p class="muted">約需 15–20 分鐘。作答到一半關掉頁面，重新開啟後可以接續。</p>'+
   '<div class="navrow"><button class="btn ghost" id="back">上一步</button><button class="btn" id="go">開始作答</button></div></div>';
 }
@@ -124,7 +124,7 @@ function vRate(){
     else if(it.k==='role'){q='遊戲中，「'+LEV[it.l]+'」這項決策由誰負責？';opts=ROLES}
     else if(it.k==='dep'){q=DEP[it.q].q+'<br><span class="muted">這句話正確嗎？</span>';opts=['正確','錯誤']}
     else{var sc=SCN[it.s],mine=it.w==='own';
-      q='<span class="muted">情境</span><br>'+sc.t+'<br><br>'+(mine?'換作是你，你會把你負責的<b>「'+LEV[sc[P.role]]+'」</b>怎麼調整？':'你猜，搭檔（成員 '+other(P.role)+'）會把他負責的<b>「'+LEV[sc[other(P.role)]]+'」</b>怎麼調整？');opts=DIR}
+      q='<span class="muted">情境</span><br>'+sc.t+'<br><br>'+(mine?'換作是你，你會把你負責的<b>「'+LEV[sc[P.role]]+'」</b>怎麼調整？':'你認為，你的搭檔（成員 '+other(P.role)+'）會把他負責的<b>「'+LEV[sc[other(P.role)]]+'」</b>怎麼調整？');opts=DIR}
     h+='<h2>'+q+'</h2><div class="opts">'+opts.map(function(t,i){return '<button class="opt'+(val===i?' sel':'')+'" data-v="'+i+'">'+t+'</button>'}).join('')+'</div>';
   }else{
     var L=it.k==='task'?TASKC:TEAMC,mixed=it.k==='task'&&it.i<3&&it.j>=3,sw=mixed?false:!!P.swap[it.k+':'+key],a=L[sw?it.j:it.i],b=L[sw?it.i:it.j];
@@ -146,7 +146,7 @@ function vMerge(){
   else if(m){
     function row(n,z){return '<tr><td>'+n+'</td><td>'+(z.r==null?'—':z.r.toFixed(3))+'</td><td>'+(z.sim==null?'—':z.sim.toFixed(3))+'</td><td>'+(z.p==null?'—':z.p.toFixed(4))+'</td><td>'+z.perms.toLocaleString()+'</td></tr>'}
     out='<table><tr><th>測量</th><th>矩陣相關 r</th><th>相似度 (r+1)/2</th><th>QAP p（單尾）</th><th>排列數</th></tr>'+row('Task MM（9 概念）',m.task)+row('Team Interaction MM（6 概念）',m.team)+'</table>'+
-    '<h3>Team Interaction MM：兩個要分開看的面向</h3><table><tr><th>面向</th><th>成員 A</th><th>成員 B</th><th>說明</th></tr><tr><td>職能知識：負責人（10 題）</td><td>'+m.roleA+'</td><td>'+m.roleB+'</td><td>知道「對方負責什麼」（答對題數）</td></tr><tr><td>職能知識：互相影響（4 題）</td><td>'+m.depA+'</td><td>'+m.depB+'</td><td>知道兩邊決策怎麼牽動彼此（答對題數）</td></tr><tr><td>決策預測（6 題）</td><td>'+m.predAB+'</td><td>'+m.predBA+'</td><td>A 猜 B／B 猜 A 的決策，與對方實際自己的選擇相符的題數</td></tr></table><p class="muted">「知道對方負責什麼」與「能預測對方怎麼決策」是不同能力：前者看職能知識，後者看決策預測。決策預測的隨機猜中期望值為 2 題（三選一）。</p>'+
+    '<h3>Team Interaction MM：兩個要分開看的面向</h3><table><tr><th>面向</th><th>成員 A</th><th>成員 B</th><th>說明</th></tr><tr><td>職能知識：負責人（10 題）</td><td>'+m.roleA+'</td><td>'+m.roleB+'</td><td>知道「對方負責什麼」（答對題數）</td></tr><tr><td>職能知識：互相影響（4 題）</td><td>'+m.depA+'</td><td>'+m.depB+'</td><td>知道兩邊決策怎麼牽動彼此（答對題數）</td></tr><tr><td>決策預測（6 題）</td><td>'+m.predAB+'</td><td>'+m.predBA+'</td><td>A 預測 B／B 預測 A 的決策，與對方實際自己的選擇相符的題數</td></tr></table><p class="muted">「知道對方負責什麼」與「能預測對方怎麼決策」是不同能力：前者看職能知識，後者看決策預測。決策預測純靠隨機的期望答對題數為 2 題（三選一）。</p>'+
     '<p class="muted">團隊代碼：'+esc(m.team_code)+'　規則檢核答對：A '+m.chkA+' / '+CHK.length+'，B '+m.chkB+' / '+CHK.length+'。QAP 為精確排列檢定：把一方矩陣的概念標籤做所有可能的重排，p 是排列後的 r 不低於實際 r 的比例。補充：排除 3 組「決策變數 × 決策變數」配對（33 格）的 Task MM 相關 r＝'+(m.task_noDD_r==null?'—':m.task_noDD_r.toFixed(3))+'（僅描述，不做 QAP）。準確性需要另外建立參照矩陣，這裡尚未計算。</p>';
   }
   return '<div class="sheet"><h2>研究者：合併兩份作答</h2><p class="muted">把兩位成員各自的作答紀錄貼進來，系統會計算矩陣相關、轉成 0–1 的相似度，並做 QAP 檢定。</p>'+
